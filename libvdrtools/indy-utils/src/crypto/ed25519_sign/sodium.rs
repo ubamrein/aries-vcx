@@ -15,7 +15,7 @@ pub const SIGNATUREBYTES: usize = sign::SIGNATUREBYTES;
 sodium_type!(Seed, sign::Seed, SEEDBYTES);
 sodium_type!(PublicKey, sign::PublicKey, SIG_PUBLICKEYBYTES);
 sodium_type!(SecretKey, sign::SecretKey, SIG_SECRETKEYBYTES);
-sodium_type!(Signature, sign::Signature, SIGNATUREBYTES);
+sodium_type_from_bytes!(Signature, sign::Signature, SIGNATUREBYTES);
 
 extern "C" {
     // TODO: fix hack:

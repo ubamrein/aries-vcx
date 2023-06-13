@@ -34,13 +34,13 @@ use lazy_static::lazy_static;
 
 use crate::{
     controllers::{
-        BlobStorageController, CacheController, ConfigController, CryptoController, DidController,
-        IssuerController, LedgerController, NonSecretsController, PairwiseController,
-        PoolController, ProverController, VerifierController, WalletController,
+        BlobStorageController, CryptoController, DidController, IssuerController,
+        NonSecretsController, PairwiseController, ProverController, VerifierController,
+        WalletController,
     },
     services::{
-        BlobStorageService, CryptoService, IssuerService, LedgerService, PoolService,
-        ProverService, VerifierService, WalletService,
+        BlobStorageService, CryptoService, IssuerService, ProverService, VerifierService,
+        WalletService,
     },
 };
 
@@ -84,15 +84,15 @@ pub struct Locator {
     pub prover_controller: ProverController,
     pub verifier_controller: VerifierController,
     pub crypto_controller: CryptoController,
-    pub config_controller: ConfigController,
-    pub ledger_controller: LedgerController,
-    pub pool_controller: PoolController,
+    // pub config_controller: ConfigController,
+    // pub ledger_controller: LedgerController,
+    // pub pool_controller: PoolController,
     pub did_controller: DidController,
     pub wallet_controller: WalletController,
     pub pairwise_controller: PairwiseController,
     pub blob_storage_controller: BlobStorageController,
     pub non_secret_controller: NonSecretsController,
-    pub cache_controller: CacheController,
+    // pub cache_controller: CacheController,
 }
 
 impl Locator {
@@ -108,8 +108,8 @@ impl Locator {
         let verifier_service = Arc::new(VerifierService::new());
         let blob_storage_service = Arc::new(BlobStorageService::new());
         let crypto_service = Arc::new(CryptoService::new());
-        let ledger_service = Arc::new(LedgerService::new());
-        let pool_service = Arc::new(PoolService::new());
+        // let ledger_service = Arc::new(LedgerService::new());
+        // let pool_service = Arc::new(PoolService::new());
         let wallet_service = Arc::new(WalletService::new());
 
         let issuer_controller = IssuerController::new(
@@ -131,22 +131,22 @@ impl Locator {
         let crypto_controller =
             CryptoController::new(wallet_service.clone(), crypto_service.clone());
 
-        let config_controller = ConfigController::new();
+        // let config_controller = ConfigController::new();
 
-        let ledger_controller = LedgerController::new(
-            pool_service.clone(),
-            crypto_service.clone(),
-            wallet_service.clone(),
-            ledger_service.clone(),
-        );
+        // let ledger_controller = LedgerController::new(
+        //     pool_service.clone(),
+        //     crypto_service.clone(),
+        //     wallet_service.clone(),
+        //     ledger_service.clone(),
+        // );
 
-        let pool_controller = PoolController::new(pool_service.clone());
+        // let pool_controller = PoolController::new(pool_service.clone());
 
         let did_controller = DidController::new(
             wallet_service.clone(),
             crypto_service.clone(),
-            ledger_service.clone(),
-            pool_service.clone(),
+            // ledger_service.clone(),
+            // pool_service.clone(),
         );
 
         let wallet_controller =
@@ -156,27 +156,27 @@ impl Locator {
         let blob_storage_controller = BlobStorageController::new(blob_storage_service.clone());
         let non_secret_controller = NonSecretsController::new(wallet_service.clone());
 
-        let cache_controller = CacheController::new(
-            crypto_service.clone(),
-            ledger_service.clone(),
-            pool_service.clone(),
-            wallet_service.clone(),
-        );
+        // let cache_controller = CacheController::new(
+        //     crypto_service.clone(),
+        //     ledger_service.clone(),
+        //     pool_service.clone(),
+        //     wallet_service.clone(),
+        // );
 
         let res = Locator {
             issuer_controller,
             prover_controller,
             verifier_controller,
             crypto_controller,
-            config_controller,
-            ledger_controller,
-            pool_controller,
+            // config_controller,
+            // ledger_controller,
+            // pool_controller,
             did_controller,
             wallet_controller,
             pairwise_controller,
             blob_storage_controller,
             non_secret_controller,
-            cache_controller,
+            // cache_controller,
         };
 
         info!("new <");

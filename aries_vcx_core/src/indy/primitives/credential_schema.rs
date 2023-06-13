@@ -1,8 +1,8 @@
 use crate::errors::error::VcxCoreResult;
 use crate::global::settings;
-use crate::indy::ledger::transactions::{
-    _check_schema_response, build_schema_request, set_endorser, sign_and_submit_to_ledger,
-};
+// use crate::indy::ledger::transactions::{
+//     _check_schema_response, build_schema_request, set_endorser, sign_and_submit_to_ledger,
+// };
 use crate::{PoolHandle, WalletHandle};
 use vdrtools::{AttributeNames, DidValue, Locator};
 
@@ -14,26 +14,27 @@ pub async fn publish_schema(
     schema_json: &str,
     endorser_did: Option<String>,
 ) -> VcxCoreResult<()> {
-    trace!(
-        "publish_schema >>> submitter_did: {:?}, schema_json: {:?}, endorser_did: {:?}",
-        submitter_did,
-        schema_json,
-        endorser_did
-    );
+    // trace!(
+    //     "publish_schema >>> submitter_did: {:?}, schema_json: {:?}, endorser_did: {:?}",
+    //     submitter_did,
+    //     schema_json,
+    //     endorser_did
+    // );
 
-    if settings::indy_mocks_enabled() {
-        debug!("publish_schema >>> mocked success");
-        return Ok(());
-    }
+    // if settings::indy_mocks_enabled() {
+    //     debug!("publish_schema >>> mocked success");
+    //     return Ok(());
+    // }
 
-    let mut request = build_schema_request(submitter_did, schema_json).await?;
-    if let Some(endorser_did) = endorser_did {
-        request = set_endorser(wallet_handle, submitter_did, &request, &endorser_did).await?;
-    }
-    let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, submitter_did, &request).await?;
-    _check_schema_response(&response)?;
+    // let mut request = build_schema_request(submitter_did, schema_json).await?;
+    // if let Some(endorser_did) = endorser_did {
+    //     request = set_endorser(wallet_handle, submitter_did, &request, &endorser_did).await?;
+    // }
+    // let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, submitter_did, &request).await?;
+    // _check_schema_response(&response)?;
 
-    Ok(())
+    // Ok(())
+    todo!{}
 }
 
 // consider relocating out of primitive
