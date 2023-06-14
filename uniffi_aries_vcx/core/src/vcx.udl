@@ -37,9 +37,20 @@ dictionary PairwiseInfo {
     string pw_vk;
 };
 
+dictionary Messages {
+    sequence<string> messages;
+};
+dictionary TypeMessage {
+    string ty;
+    string content;
+};
+
 interface Connection {
     [Throws=VcxUniFFIError]
     ConnectionState get_state();
+
+    [Throws=VcxUniFFIError]
+    TypeMessage unpack_msg(ProfileHolder profile, string msg);
 
     [Throws=VcxUniFFIError]
     PairwiseInfo pairwise_info();
@@ -63,11 +74,27 @@ interface Connection {
     void send_ack(ProfileHolder profile);
 };
 
+interface Issuance {
+    [Throws=VcxUniFFIError]
+    void receive_offer(string offer);
+    [Throws=VcxUniFFIError]
+    void send_request(ProfileHolder profile);
+    [Throws=VcxUniFFIError]
+    void process_credential(ProfileHolder profile, string credential);
+    [Throws=VcxUniFFIError]
+    CredentialEntry get_credential();
+};
+
 [Error]
 enum VcxUniFFIError {
     "AriesVcxError",
     "SerializationError",
     "InternalError",
+};
+
+dictionary CredentialEntry {
+    string credential_id;
+    string credential;
 };
 
 namespace vcx {
@@ -79,4 +106,10 @@ namespace vcx {
 
     [Throws=VcxUniFFIError]
     Connection create_invitee(ProfileHolder profile, string did_doc);
+
+    [Throws=VcxUniFFIError]
+    Issuance create_vc_receiver(string source_id, Connection connection);
+
+    Messages receive_msgs(string id);
+
 };

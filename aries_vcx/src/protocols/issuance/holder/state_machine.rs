@@ -272,7 +272,9 @@ impl HolderSM {
             &CredentialIssuanceAction::CredentialOffer(offer.clone()),
         )?;
         let state = match self.state {
-            HolderFullState::ProposalSent(_) => HolderFullState::OfferReceived(OfferReceivedState::new(offer)),
+            HolderFullState::ProposalSent(_) | HolderFullState::Initial(_) => {
+                HolderFullState::OfferReceived(OfferReceivedState::new(offer))
+            }
             s => {
                 warn!("Unable to receive credential offer in state {}", s);
                 s
@@ -291,7 +293,7 @@ impl HolderSM {
             HolderFullState::OfferReceived(state_data) => {
                 match _make_credential_request(profile, self.thread_id.clone(), my_pw_did, &state_data.offer).await {
                     Ok((cred_request, req_meta, cred_def_json)) => {
-                        send_message(cred_request.into()).await?;
+                        send_message(cred_request.clone().into()).await?;
                         HolderFullState::RequestSent((state_data, req_meta, cred_def_json).into())
                     }
                     Err(err) => {
@@ -306,6 +308,7 @@ impl HolderSM {
                 }
             }
             s => {
+                panic!("wrong state");
                 warn!("Unable to send credential request in state {}", s);
                 s
             }
@@ -643,9 +646,7 @@ async fn _make_credential_request(
         my_pw_did,
         offer
     );
-
     let cred_offer = get_attach_as_string!(&offer.content.offers_attach);
-
     trace!("Parsed cred offer attachment: {}", cred_offer);
     let cred_def_id = parse_cred_def_id_from_cred_offer(&cred_offer)?;
     let (req, req_meta, _cred_def_id, cred_def_json) =

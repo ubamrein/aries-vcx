@@ -1,17 +1,20 @@
 use diddoc_legacy::aries::diddoc::AriesDidDoc;
+use serde_json::Value;
 use std::sync::{Arc, Mutex};
 
 use aries_vcx::{
-    errors::error::{AriesVcxError, AriesVcxErrorKind},
+    errors::error::{AriesVcxError, AriesVcxErrorKind, VcxResult},
+    messages::AriesMessage,
     protocols::connection::pairwise_info::PairwiseInfo,
-    protocols::connection::Connection as VcxConnection,
     protocols::connection::GenericConnection as VcxGenericConnection,
+    protocols::{connection::Connection as VcxConnection, SendClosure},
 };
 use url::Url;
 
 use crate::{
     core::{http_client::HttpClient, profile::ProfileHolder},
-    errors::error::VcxUniFFIResult,
+    errors::error::{VcxUniFFIError, VcxUniFFIResult},
+    handlers::{issuance::issuance::Message, TypeMessage},
     runtime::block_on,
 };
 
@@ -32,6 +35,9 @@ pub fn create_inviter(profile: Arc<ProfileHolder>) -> VcxUniFFIResult<Arc<Connec
 
 // seperate function since uniffi can't handle constructors with results
 pub fn create_invitee(profile: Arc<ProfileHolder>, did_doc: String) -> VcxUniFFIResult<Arc<Connection>> {
+    android_logger::init_once(
+        android_logger::Config::default().with_max_level(log::LevelFilter::Trace),
+    );
     block_on(async {
         let _did_doc: AriesDidDoc = serde_json::from_str(&did_doc)?;
         let pairwise_info = PairwiseInfo::create(&profile.inner.inject_wallet()).await?;
@@ -43,6 +49,41 @@ pub fn create_invitee(profile: Arc<ProfileHolder>, did_doc: String) -> VcxUniFFI
 }
 
 impl Connection {
+    pub fn unpack_msg(&self, profile: Arc<ProfileHolder>, msg: String) -> VcxUniFFIResult<TypeMessage> {
+        let _guard = self.handler.lock()?;
+        let w = profile.inner.inject_wallet();
+        let decrypted_package = block_on(w.unpack_message(msg.as_bytes()))?;
+        let decrypted_package =
+            std::str::from_utf8(&decrypted_package).map_err(|e| VcxUniFFIError::SerializationError {
+                error_msg: "Wrong encoding".to_string(),
+            })?;
+        let decrypted_package: Value = serde_json::from_str(decrypted_package)?;
+        let msg = decrypted_package
+            .get("message")
+            .ok_or_else(|| VcxUniFFIError::SerializationError {
+                error_msg: "Message not found".to_string(),
+            })?
+            .as_str()
+            .ok_or_else(|| VcxUniFFIError::SerializationError {
+                error_msg: "Message not a string".to_string(),
+            })?;
+
+        let mut deserialized_value = serde_json::from_str::<Value>(msg)?;
+
+        let ty = deserialized_value
+            .get("@type")
+            .unwrap_or(&Value::Null)
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        if let Some(t) = deserialized_value.get_mut("~thread") {
+            if t.get("thid").is_none() {
+                *t = Value::Null;
+            }
+        }
+        let content = serde_json::to_string(&deserialized_value).unwrap();
+        Ok(TypeMessage { ty, content })
+    }
     pub fn get_state(&self) -> VcxUniFFIResult<ConnectionState> {
         let handler = self.handler.lock()?;
         Ok(ConnectionState::from(handler.state()))
@@ -154,6 +195,19 @@ impl Connection {
             *handler = VcxGenericConnection::from(new_conn);
 
             Ok(())
+        })
+    }
+
+    pub fn send_message(&self, profile: Arc<ProfileHolder>) -> SendClosure {
+        let handler = self.handler.lock().unwrap();
+        let connection = handler.clone();
+        Box::new(move |m| {
+            Box::pin(async move {
+                connection
+                    .send_message(&profile.inner.inject_wallet(), &m, &HttpClient)
+                    .await?;
+                VcxResult::Ok(())
+            })
         })
     }
 

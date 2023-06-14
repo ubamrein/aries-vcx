@@ -66,9 +66,11 @@ pub async fn post_message(body_content: Vec<u8>, url: Url) -> AgencyClientResult
 
     let content_length = response.content_length();
     let response_status = response.status();
+     log::warn!("HTTP Status: {response_status}");
     match response.text().await {
         Ok(payload) => {
             if response_status.is_success() {
+                log::warn!("HTTP returned: {payload}");
                 Ok(payload.into_bytes())
             } else {
                 Err(AgencyClientError::from_msg(
