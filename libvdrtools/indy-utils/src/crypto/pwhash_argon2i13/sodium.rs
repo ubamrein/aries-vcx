@@ -9,6 +9,8 @@ pub const SALTBYTES: usize = pwhash::SALTBYTES;
 
 sodium_type!(Salt, pwhash::Salt, SALTBYTES);
 
+// https://docs.rs/rust-argon2/latest/argon2/
+
 pub fn gen_salt() -> Salt {
     Salt(pwhash::gen_salt())
 }

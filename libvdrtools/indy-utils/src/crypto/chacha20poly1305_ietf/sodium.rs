@@ -8,6 +8,7 @@ use std::{
     cmp, io,
     io::{Read, Write},
 };
+// https://docs.rs/chacha20poly1305/latest/chacha20poly1305/
 
 pub const KEYBYTES: usize = chacha20poly1305_ietf::KEYBYTES;
 pub const NONCEBYTES: usize = chacha20poly1305_ietf::NONCEBYTES;
