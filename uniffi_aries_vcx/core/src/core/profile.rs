@@ -3,7 +3,7 @@ use std::sync::Arc;
 use aries_vcx::aries_vcx_core::anoncreds::base_anoncreds::BaseAnonCreds;
 use aries_vcx::aries_vcx_core::anoncreds::indy_anoncreds::IndySdkAnonCreds;
 use aries_vcx::aries_vcx_core::errors::error::VcxCoreResult;
-use aries_vcx::aries_vcx_core::indy::wallet::{create_and_open_wallet, WalletConfig, create_wallet_with_master_secret, open_wallet};
+use aries_vcx::aries_vcx_core::indy::wallet::{create_wallet_with_master_secret, open_wallet, WalletConfig};
 use aries_vcx::aries_vcx_core::ledger::base_ledger::{
     AnoncredsLedgerRead, AnoncredsLedgerWrite, IndyLedgerRead, IndyLedgerWrite, TxnAuthrAgrmtOptions,
 };
@@ -16,20 +16,28 @@ use aries_vcx::errors::error::VcxResult;
 use async_trait::async_trait;
 
 use crate::{errors::error::VcxUniFFIResult, runtime::block_on};
+use aries_vcx::transport::Transport;
+
+use super::http_client::NativeClient;
 
 pub struct ProfileHolder {
     pub inner: Arc<dyn Profile>,
+    pub transport: Arc<dyn Transport>,
 }
 
 impl ProfileHolder {}
 
-pub fn new_indy_profile(wallet_config: WalletConfig) -> VcxUniFFIResult<Arc<ProfileHolder>> {
+pub fn new_indy_profile(
+    wallet_config: WalletConfig,
+    native_client: Arc<NativeClient>,
+) -> VcxUniFFIResult<Arc<ProfileHolder>> {
     block_on(async {
         create_wallet_with_master_secret(&wallet_config).await?;
         let wh = open_wallet(&wallet_config).await?;
         let inner: Arc<dyn Profile> = Arc::new(DummyProfile(wh));
+        let transport: Arc<dyn Transport> = native_client;
 
-        Ok(Arc::new(ProfileHolder { inner }))
+        Ok(Arc::new(ProfileHolder { inner, transport }))
     })
 }
 

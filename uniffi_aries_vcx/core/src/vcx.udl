@@ -92,6 +92,11 @@ enum VcxUniFFIError {
     "InternalError",
 };
 
+[Error]
+enum NativeError {
+    "InternalError"
+};
+
 dictionary CredentialEntry {
     string credential_id;
     string credential;
@@ -99,7 +104,7 @@ dictionary CredentialEntry {
 
 namespace vcx {
     [Throws=VcxUniFFIError]
-    ProfileHolder new_indy_profile(WalletConfig wallet_config);
+    ProfileHolder new_indy_profile(WalletConfig wallet_config, NativeClient client);
 
     [Throws=VcxUniFFIError]
     Connection create_inviter(ProfileHolder profile);
@@ -109,7 +114,16 @@ namespace vcx {
 
     [Throws=VcxUniFFIError]
     Issuance create_vc_receiver(string source_id, Connection connection);
-
     Messages receive_msgs(string id);
 
+};
+
+
+callback interface NativeTransport {
+    [Throws=NativeError]
+    void send_message(sequence<u8> msg, string url);
+};
+
+interface NativeClient {
+    constructor(NativeTransport transport);
 };

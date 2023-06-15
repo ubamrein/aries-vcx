@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 
 use aries_vcx::{
     errors::error::{AriesVcxError, AriesVcxErrorKind, VcxResult},
-    messages::AriesMessage,
     protocols::connection::pairwise_info::PairwiseInfo,
     protocols::connection::GenericConnection as VcxGenericConnection,
     protocols::{connection::Connection as VcxConnection, SendClosure},
@@ -12,9 +11,9 @@ use aries_vcx::{
 use url::Url;
 
 use crate::{
-    core::{http_client::HttpClient, profile::ProfileHolder},
+    core::profile::ProfileHolder,
     errors::error::{VcxUniFFIError, VcxUniFFIResult},
-    handlers::{issuance::issuance::Message, TypeMessage},
+    handlers::TypeMessage,
     runtime::block_on,
 };
 
@@ -35,9 +34,7 @@ pub fn create_inviter(profile: Arc<ProfileHolder>) -> VcxUniFFIResult<Arc<Connec
 
 // seperate function since uniffi can't handle constructors with results
 pub fn create_invitee(profile: Arc<ProfileHolder>, did_doc: String) -> VcxUniFFIResult<Arc<Connection>> {
-    android_logger::init_once(
-        android_logger::Config::default().with_max_level(log::LevelFilter::Trace),
-    );
+    android_logger::init_once(android_logger::Config::default().with_max_level(log::LevelFilter::Trace));
     block_on(async {
         let _did_doc: AriesDidDoc = serde_json::from_str(&did_doc)?;
         let pairwise_info = PairwiseInfo::create(&profile.inner.inject_wallet()).await?;
@@ -54,7 +51,7 @@ impl Connection {
         let w = profile.inner.inject_wallet();
         let decrypted_package = block_on(w.unpack_message(msg.as_bytes()))?;
         let decrypted_package =
-            std::str::from_utf8(&decrypted_package).map_err(|e| VcxUniFFIError::SerializationError {
+            std::str::from_utf8(&decrypted_package).map_err(|_| VcxUniFFIError::SerializationError {
                 error_msg: "Wrong encoding".to_string(),
             })?;
         let decrypted_package: Value = serde_json::from_str(decrypted_package)?;
@@ -128,10 +125,16 @@ impl Connection {
         let connection = VcxConnection::try_from(handler.clone())?;
         let url = Url::parse(&service_endpoint)
             .map_err(|err| AriesVcxError::from_msg(AriesVcxErrorKind::InvalidUrl, err.to_string()))?;
-
+        let native_client = profile.transport.clone();
         block_on(async {
             let new_conn = connection
-                .handle_request(&profile.inner.inject_wallet(), request, url, routing_keys, &HttpClient)
+                .handle_request(
+                    &profile.inner.inject_wallet(),
+                    request,
+                    url,
+                    routing_keys,
+                    &native_client,
+                )
                 .await?;
 
             *handler = VcxGenericConnection::from(new_conn);
@@ -149,10 +152,10 @@ impl Connection {
         let response = serde_json::from_str(&response)?;
 
         let connection = VcxConnection::try_from(handler.clone())?;
-
+        let native_client = profile.transport.clone();
         block_on(async {
             let new_conn = connection
-                .handle_response(&profile.inner.inject_wallet(), response, &HttpClient)
+                .handle_response(&profile.inner.inject_wallet(), response, &native_client)
                 .await?;
             *handler = VcxGenericConnection::from(new_conn);
 
@@ -171,10 +174,10 @@ impl Connection {
         let connection = VcxConnection::try_from(handler.clone())?;
         let url = Url::parse(&service_endpoint)
             .map_err(|err| AriesVcxError::from_msg(AriesVcxErrorKind::InvalidUrl, err.to_string()))?;
-
+        let native_client = profile.transport.clone();
         block_on(async {
             let new_conn = connection
-                .send_request(&profile.inner.inject_wallet(), url, routing_keys, &HttpClient)
+                .send_request(&profile.inner.inject_wallet(), url, routing_keys, &native_client)
                 .await?;
             *handler = VcxGenericConnection::from(new_conn);
 
@@ -186,10 +189,10 @@ impl Connection {
         let mut handler = self.handler.lock()?;
 
         let connection = VcxConnection::try_from(handler.clone())?;
-
+        let native_client = profile.transport.clone();
         block_on(async {
             let new_conn = connection
-                .send_response(&profile.inner.inject_wallet(), &HttpClient)
+                .send_response(&profile.inner.inject_wallet(), &native_client)
                 .await?;
 
             *handler = VcxGenericConnection::from(new_conn);
@@ -201,10 +204,11 @@ impl Connection {
     pub fn send_message(&self, profile: Arc<ProfileHolder>) -> SendClosure {
         let handler = self.handler.lock().unwrap();
         let connection = handler.clone();
+        let native_client = profile.transport.clone();
         Box::new(move |m| {
             Box::pin(async move {
                 connection
-                    .send_message(&profile.inner.inject_wallet(), &m, &HttpClient)
+                    .send_message(&profile.inner.inject_wallet(), &m, &native_client)
                     .await?;
                 VcxResult::Ok(())
             })
@@ -215,9 +219,11 @@ impl Connection {
         let mut handler = self.handler.lock()?;
 
         let connection = VcxConnection::try_from(handler.clone())?;
-
+        let native_client = profile.transport.clone();
         block_on(async {
-            let new_conn = connection.send_ack(&profile.inner.inject_wallet(), &HttpClient).await?;
+            let new_conn = connection
+                .send_ack(&profile.inner.inject_wallet(), &native_client)
+                .await?;
             *handler = VcxGenericConnection::from(new_conn);
 
             Ok(())
