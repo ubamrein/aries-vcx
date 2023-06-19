@@ -10,3 +10,9 @@ wrappers/ios_legacy/vcx/vcx.framework/**
 wrappers/ios_legacy/vcx/vcx.framework.dSYM/**
 .vscode
 **/tails.txt
+
+**/uniffi_aries_vcx/**/jniLibs/**
+**/uniffi_aries_vcx/**/headers/**
+**/uniffi_aries_vcx/**/kotlin/**
+**/uniffi_aries_vcx/**/swift/**
+**/uniffi_aries_vcx/**/*.xcframework/**
