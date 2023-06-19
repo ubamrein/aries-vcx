@@ -3,6 +3,8 @@ use serde_json::Value;
 pub mod connection;
 pub mod issuance;
 
+pub mod proof;
+
 #[derive(Clone, Debug, Default)]
 pub struct Messages {
     pub messages: Vec<String>,
