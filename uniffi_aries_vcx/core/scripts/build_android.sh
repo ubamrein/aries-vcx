@@ -8,3 +8,5 @@ cargo run --features=uniffi/cli --bin uniffi-bindgen generate ./src/vcx.udl --la
 cargo ndk -o ./jniLibs -t arm64-v8a -t x86_64 -t x86 -t armeabi-v7a build --release
 
 cp -r jniLibs/* vcx-android/vcx/src/main/jniLibs/
+
+cd vcx-android/ && ./gradlew assembleRelease
