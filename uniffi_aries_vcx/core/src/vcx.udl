@@ -44,6 +44,12 @@ dictionary TypeMessage {
     string ty;
     string content;
 };
+dictionary SocialId {
+    string name;
+    string email;
+    string phone;
+    string photo;
+};
 
 interface Connection {
     [Throws=VcxUniFFIError]
@@ -74,6 +80,8 @@ interface Connection {
     void send_ack(ProfileHolder profile);
 };
 
+
+
 interface Issuance {
     [Throws=VcxUniFFIError]
     void receive_offer(string offer);
@@ -83,6 +91,8 @@ interface Issuance {
     void process_credential(ProfileHolder profile, string credential);
     [Throws=VcxUniFFIError]
     CredentialEntry get_credential();
+    [Throws=VcxUniFFIError]
+    SocialId get_indy_cred(string cred);
 };
 
 [Error]
@@ -110,7 +120,7 @@ namespace vcx {
     Connection create_inviter(ProfileHolder profile);
 
     [Throws=VcxUniFFIError]
-    Connection create_invitee(ProfileHolder profile, string did_doc);
+    Connection create_invitee(ProfileHolder profile);
 
     [Throws=VcxUniFFIError]
     Issuance create_vc_receiver(string source_id, Connection connection);
@@ -126,4 +136,12 @@ callback interface NativeTransport {
 
 interface NativeClient {
     constructor(NativeTransport transport);
+};
+
+
+interface Proof {
+    [Name=create_from_request,Throws=VcxUniFFIError]
+    constructor( Connection connection, string source_id, string presentation_request);
+    [Throws=VcxUniFFIError]
+    string select_credentials(ProfileHolder profile);
 };
