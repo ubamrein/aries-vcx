@@ -4,6 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use aries_vcx::{
     errors::error::{AriesVcxError, AriesVcxErrorKind, VcxResult},
+    handlers::util::AnyInvitation,
+    messages::AriesMessage,
     protocols::connection::pairwise_info::PairwiseInfo,
     protocols::connection::GenericConnection as VcxGenericConnection,
     protocols::{connection::Connection as VcxConnection, SendClosure},
@@ -88,6 +90,20 @@ impl Connection {
     pub fn pairwise_info(&self) -> VcxUniFFIResult<PairwiseInfo> {
         let handler = self.handler.lock()?;
         Ok(handler.pairwise_info().clone())
+    }
+    pub fn create_invitation(&self, service_endpoint: String) -> VcxUniFFIResult<String> {
+        let mut handler = self.handler.lock()?;
+        let connection = VcxConnection::try_from(handler.clone())?;
+        let url: Url = service_endpoint.parse().map_err(|_| VcxUniFFIError::InternalError {
+            error_msg: "service_endpoint is not an url".to_string(),
+        })?;
+        let invite = connection.create_invitation(vec![], url);
+        let AnyInvitation::Con(invitation) = invite.get_invitation().to_owned() else {
+            return Err(VcxUniFFIError::InternalError { error_msg: "Unexpected invite".to_string() });
+        };
+        *handler = invite.into();
+        let invitation = serde_json::to_string(&invitation)?;
+        Ok(invitation)
     }
 
     // NOTE : using string here out of laziness. We could have type this,
@@ -213,6 +229,17 @@ impl Connection {
             })
         })
     }
+    pub fn send_custom_message(&self, profile: Arc<ProfileHolder>, msg: AriesMessage) -> VcxUniFFIResult<()> {
+        let handler = self.handler.lock().unwrap();
+        let connection = handler.clone();
+        let native_client = profile.transport.clone();
+        block_on(async move {
+            connection
+                .send_message(&profile.inner.inject_wallet(), &msg, &native_client)
+                .await
+        })?;
+        Ok(())
+    }
 
     pub fn send_ack(&self, profile: Arc<ProfileHolder>) -> VcxUniFFIResult<()> {
         let mut handler = self.handler.lock()?;
@@ -227,5 +254,113 @@ impl Connection {
 
             Ok(())
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{sync::Arc, time::Duration};
+
+    use aries_vcx::{
+        aries_vcx_core::indy::wallet::WalletConfigBuilder,
+        messages::{
+            msg_fields::protocols::basic_message::{BasicMessage, BasicMessageContent, BasicMessageDecorators},
+            msg_parts::MsgParts,
+            AriesMessage,
+        },
+    };
+    use chrono::Utc;
+    use serde_json::Value;
+
+    use crate::{
+        core::{
+            http_client::{self, NativeClient},
+            profile::new_indy_profile,
+        },
+        handlers::connection::connection::create_invitee,
+    };
+
+    use super::create_inviter;
+    static INVITER_URL_INBOUND: &str = "https://did-relay.ubique.ch/msg/fancy-pancy-inviter";
+    static INVITER_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-inviter";
+    static INVITEE_URL_INBOUND: &str = "https://did-relay.ubique.ch/msg/fancy-pancy-invitee";
+    static INVITEE_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-invitee";
+    #[test]
+    fn test_invitation() {
+        // clean pipe
+        let _ = ureq::get(INVITEE_URL_MAILBOX).call();
+        let _ = ureq::get(INVITER_URL_MAILBOX).call();
+
+        let native_client = NativeClient::new(Box::new(http_client::HttpClient));
+        let wallet_config = WalletConfigBuilder::default()
+            .wallet_name("test")
+            .wallet_key("1234")
+            .wallet_key_derivation("ARGON2I_MOD")
+            .build()
+            .unwrap();
+        let invitee_native_client = NativeClient::new(Box::new(http_client::HttpClient));
+        let invitee_wallet_config = WalletConfigBuilder::default()
+            .wallet_name("test-invitee")
+            .wallet_key("1234")
+            .wallet_key_derivation("ARGON2I_MOD")
+            .build()
+            .unwrap();
+        let profile = new_indy_profile(wallet_config, Arc::new(native_client)).unwrap();
+        let inviter = create_inviter(profile.clone()).unwrap();
+        let invitation = inviter.create_invitation(INVITER_URL_INBOUND.to_string()).unwrap();
+        println!("{invitation}");
+
+        let invitee_profile = new_indy_profile(invitee_wallet_config, Arc::new(invitee_native_client)).unwrap();
+
+        let invitee = create_invitee(invitee_profile.clone()).unwrap();
+        invitee.accept_invitation(invitee_profile.clone(), invitation).unwrap();
+        invitee
+            .send_request(invitee_profile.clone(), INVITEE_URL_INBOUND.to_string(), vec![])
+            .unwrap();
+        // std::thread::sleep(Duration::from_secs(3));
+        let msg = ureq::get(INVITER_URL_MAILBOX).call().unwrap().into_string().unwrap();
+        let mut msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+        assert_eq!(msgs.len(), 1);
+        let connection_request = msgs.pop().unwrap();
+        let connection_request = serde_json::to_string(&connection_request).unwrap();
+        let connection_request = inviter.unpack_msg(profile.clone(), connection_request).unwrap();
+        println!("{}", connection_request.content);
+        inviter
+            .handle_request(
+                profile.clone(),
+                connection_request.content,
+                INVITER_URL_INBOUND.to_string(),
+                vec![],
+            )
+            .unwrap();
+        inviter.send_response(profile.clone()).unwrap();
+
+        // std::thread::sleep(Duration::from_secs(3));
+        let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+        let mut msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+        assert_eq!(msgs.len(), 1);
+        let connection_response = msgs.pop().unwrap();
+        let connection_response = serde_json::to_string(&connection_response).unwrap();
+        let connection_response = invitee
+            .unpack_msg(invitee_profile.clone(), connection_response)
+            .unwrap();
+        invitee
+            .handle_response(invitee_profile.clone(), connection_response.content)
+            .unwrap();
+
+        let content = BasicMessageContent::new("Hallo".to_string(), chrono::Utc::now());
+        let msg = AriesMessage::BasicMessage(MsgParts::with_decorators(
+            "test-invitee".to_string(),
+            content,
+            BasicMessageDecorators::default(),
+        ));
+        invitee.send_custom_message(invitee_profile, msg).unwrap();
+        // std::thread::sleep(Duration::from_secs(3));
+        let msg = ureq::get(INVITER_URL_MAILBOX).call().unwrap().into_string().unwrap();
+        let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+        assert_eq!(msgs.len(), 1);
+        let msg = serde_json::to_string(&msgs[0]).unwrap();
+        let msg = inviter.unpack_msg(profile.clone(), msg).unwrap();
+        println!("{}", msg.content);
     }
 }

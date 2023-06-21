@@ -10,9 +10,7 @@ use std::{
 };
 
 use aries_vcx::{
-    common::proofs::proof_request::PresentationRequestData,
-    core::profile::profile::Profile,
-    errors::error::{AriesVcxError, VcxResult},
+    errors::error::AriesVcxError,
     handlers::proof_presentation::{prover::Prover, types::SelectedCredentials},
     messages::msg_fields::protocols::present_proof::request::RequestPresentation,
 };
@@ -24,19 +22,14 @@ use crate::{
 
 pub struct Proof {
     handler: Mutex<Prover>,
-    connection: Arc<Connection>,
 }
 
 impl Proof {
-    pub fn create_from_request(
-        connection: Arc<Connection>,
-        source_id: String,
-        presentation_request: String,
-    ) -> VcxUniFFIResult<Proof> {
+    pub fn create_from_request(source_id: String, presentation_request: String) -> VcxUniFFIResult<Proof> {
         let req: RequestPresentation = serde_json::from_str(&presentation_request)?;
         let p = Prover::create_from_request(&source_id, req)?;
         let handler = Mutex::new(p);
-        Ok(Proof { handler, connection })
+        Ok(Proof { handler })
     }
     pub fn select_credentials(&self, profile: Arc<ProfileHolder>) -> VcxUniFFIResult<String> {
         let guard = self.handler.lock()?;

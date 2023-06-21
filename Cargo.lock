@@ -4882,6 +4882,7 @@ dependencies = [
  "aries-vcx",
  "async-trait",
  "base64 0.21.2",
+ "chrono",
  "diddoc_legacy",
  "log",
  "once_cell",

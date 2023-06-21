@@ -141,7 +141,9 @@ interface NativeClient {
 
 interface Proof {
     [Name=create_from_request,Throws=VcxUniFFIError]
-    constructor( Connection connection, string source_id, string presentation_request);
+    constructor(string source_id, string presentation_request);
     [Throws=VcxUniFFIError]
     string select_credentials(ProfileHolder profile);
+    [Throws=VcxUniFFIError]
+    void send_presentation(ProfileHolder profile, Connection connection, string select_credentials);
 };
