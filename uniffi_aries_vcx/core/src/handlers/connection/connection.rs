@@ -275,22 +275,21 @@ mod tests {
     use crate::{
         core::{
             http_client::{self, NativeClient},
-            profile::new_indy_profile,
+            profile::{new_indy_profile, ProfileHolder},
         },
         handlers::connection::connection::create_invitee,
     };
 
-    use super::create_inviter;
+    use super::{create_inviter, Connection};
     static INVITER_URL_INBOUND: &str = "https://did-relay.ubique.ch/msg/fancy-pancy-inviter";
     static INVITER_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-inviter";
     static INVITEE_URL_INBOUND: &str = "https://did-relay.ubique.ch/msg/fancy-pancy-invitee";
     static INVITEE_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-invitee";
-    #[test]
-    fn test_invitation() {
-        // clean pipe
-        let _ = ureq::get(INVITEE_URL_MAILBOX).call();
-        let _ = ureq::get(INVITER_URL_MAILBOX).call();
 
+    fn establish_connection() -> (
+        (Arc<ProfileHolder>, Arc<Connection>),
+        (Arc<ProfileHolder>, Arc<Connection>),
+    ) {
         let native_client = NativeClient::new(Box::new(http_client::HttpClient));
         let wallet_config = WalletConfigBuilder::default()
             .wallet_name("test")
@@ -347,6 +346,15 @@ mod tests {
         invitee
             .handle_response(invitee_profile.clone(), connection_response.content)
             .unwrap();
+        ((profile, inviter), (invitee_profile, invitee))
+    }
+    #[test]
+    fn test_invitation() {
+        // clean pipe
+        let _ = ureq::get(INVITEE_URL_MAILBOX).call();
+        let _ = ureq::get(INVITER_URL_MAILBOX).call();
+
+        let (inviter, invitee) = establish_connection();
 
         let content = BasicMessageContent::new("Hallo".to_string(), chrono::Utc::now());
         let msg = AriesMessage::BasicMessage(MsgParts::with_decorators(
@@ -354,13 +362,36 @@ mod tests {
             content,
             BasicMessageDecorators::default(),
         ));
-        invitee.send_custom_message(invitee_profile, msg).unwrap();
+        invitee.1.send_custom_message(invitee.0.clone(), msg).unwrap();
         // std::thread::sleep(Duration::from_secs(3));
         let msg = ureq::get(INVITER_URL_MAILBOX).call().unwrap().into_string().unwrap();
         let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
         assert_eq!(msgs.len(), 1);
         let msg = serde_json::to_string(&msgs[0]).unwrap();
-        let msg = inviter.unpack_msg(profile.clone(), msg).unwrap();
-        println!("{}", msg.content);
+        let msg = inviter.1.unpack_msg(inviter.0.clone(), msg).unwrap();
+        let msg_value: Value = serde_json::from_str(&msg.content).unwrap();
+        assert_eq!(
+            Some(Value::String("Hallo".to_string())),
+            msg_value.get("content").cloned()
+        );
+
+        let content = BasicMessageContent::new("Welt".to_string(), chrono::Utc::now());
+        let msg = AriesMessage::BasicMessage(MsgParts::with_decorators(
+            "test-inviter".to_string(),
+            content,
+            BasicMessageDecorators::default(),
+        ));
+        inviter.1.send_custom_message(inviter.0.clone(), msg).unwrap();
+
+        let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+        let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+        assert_eq!(msgs.len(), 1);
+        let msg = serde_json::to_string(&msgs[0]).unwrap();
+        let msg = invitee.1.unpack_msg(invitee.0.clone(), msg).unwrap();
+        let msg_value: Value = serde_json::from_str(&msg.content).unwrap();
+        assert_eq!(
+            Some(Value::String("Welt".to_string())),
+            msg_value.get("content").cloned()
+        );
     }
 }
