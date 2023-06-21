@@ -3,10 +3,12 @@ extern crate sodiumoxide;
 use self::sodiumoxide::{crypto::aead::chacha20poly1305_ietf, utils};
 use super::pwhash_argon2i13;
 use indy_api_types::{domain::wallet::KeyDerivationMethod, errors::prelude::*};
+use sodiumoxide::randombytes::randombytes_into;
 use std::{
     cmp, io,
     io::{Read, Write},
 };
+// https://docs.rs/chacha20poly1305/latest/chacha20poly1305/
 
 pub const KEYBYTES: usize = chacha20poly1305_ietf::KEYBYTES;
 pub const NONCEBYTES: usize = chacha20poly1305_ietf::NONCEBYTES;
@@ -45,7 +47,9 @@ pub fn derive_key(
 }
 
 pub fn gen_nonce() -> Nonce {
-    Nonce(chacha20poly1305_ietf::gen_nonce())
+    let mut n = chacha20poly1305_ietf::Nonce([0u8; NONCEBYTES]);
+    randombytes_into(&mut n.0);
+    Nonce(n)
 }
 
 pub fn gen_nonce_and_encrypt(data: &[u8], key: &Key) -> (Vec<u8>, Nonce) {

@@ -9,9 +9,9 @@ use crate::errors::error::{AriesVcxError, AriesVcxErrorKind, VcxResult};
 use crate::utils::encryption_envelope::EncryptionEnvelope;
 use messages::AriesMessage;
 
-#[macro_use]
-#[cfg(feature = "vdrtools")]
-pub mod devsetup;
+// #[macro_use]
+// #[cfg(feature = "vdrtools")]
+// pub mod devsetup;
 
 #[cfg(debug_assertions)]
 #[macro_export]

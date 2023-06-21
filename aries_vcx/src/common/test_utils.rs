@@ -12,8 +12,8 @@ use crate::common::primitives::credential_definition::CredentialDef;
 use crate::common::primitives::credential_definition::CredentialDefConfigBuilder;
 use crate::common::primitives::revocation_registry::RevocationRegistry;
 use crate::core::profile::profile::Profile;
-#[cfg(feature = "vdrtools")]
-use crate::core::profile::vdrtools_profile::VdrtoolsProfile;
+// #[cfg(feature = "vdrtools")]
+// use crate::core::profile::vdrtools_profile::VdrtoolsProfile;
 use crate::global::settings;
 use crate::utils::constants::{DEFAULT_SCHEMA_ATTRS, TAILS_DIR, TEST_TAILS_URL, TRUSTEE_SEED};
 use crate::utils::get_temp_dir_path;

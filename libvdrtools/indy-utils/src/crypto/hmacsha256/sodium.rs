@@ -15,3 +15,6 @@ pub fn gen_key() -> Key {
 pub fn authenticate(data: &[u8], key: &Key) -> Tag {
     Tag(hmacsha256::authenticate(data, &key.0))
 }
+
+//https://docs.rs/hmac/latest/hmac/
+// https://docs.rs/sha2/latest/sha2/

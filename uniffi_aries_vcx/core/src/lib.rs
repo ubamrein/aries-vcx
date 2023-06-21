@@ -5,11 +5,14 @@ pub mod errors;
 pub mod handlers;
 pub mod runtime;
 
+use crate::core::http_client::NativeClient;
+use crate::core::http_client::NativeTransport;
 use crate::core::profile::*;
 use crate::errors::error::*;
+use crate::handlers::*;
 use aries_vcx::{aries_vcx_core::indy::wallet::WalletConfig, protocols::connection::pairwise_info::PairwiseInfo};
-use diddoc_legacy::{
-    aries::service::AriesService,
-    w3c::model::{Authentication, Ed25519PublicKey},
+use handlers::{
+    connection::{connection::*, *},
+    issuance::{issuance::*, *},
+    proof::{proof::*, *}
 };
-use handlers::connection::{connection::*, *};

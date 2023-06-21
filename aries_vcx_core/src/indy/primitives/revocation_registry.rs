@@ -3,9 +3,9 @@ use vdrtools::{DidValue, Locator};
 use crate::errors::error::VcxCoreResult;
 use crate::global::settings;
 use crate::indy::anoncreds;
-use crate::indy::ledger::transactions::{
-    build_rev_reg_delta_request, build_rev_reg_request, check_response, sign_and_submit_to_ledger,
-};
+// use crate::indy::ledger::transactions::{
+//     build_rev_reg_delta_request, build_rev_reg_request, check_response, sign_and_submit_to_ledger,
+// };
 use crate::indy::utils::parse_and_validate;
 use crate::indy::wallet_non_secrets::{get_rev_reg_delta, set_rev_reg_delta};
 use crate::{PoolHandle, WalletHandle};
@@ -89,17 +89,18 @@ pub async fn publish_rev_reg_def(
     issuer_did: &str,
     rev_reg_def: &str,
 ) -> VcxCoreResult<()> {
-    trace!("publish_rev_reg_def >>> issuer_did: {}, rev_reg_def: ...", issuer_did);
-    if settings::indy_mocks_enabled() {
-        debug!("publish_rev_reg_def >>> mocked success");
-        return Ok(());
-    }
+    // trace!("publish_rev_reg_def >>> issuer_did: {}, rev_reg_def: ...", issuer_did);
+    // if settings::indy_mocks_enabled() {
+    //     debug!("publish_rev_reg_def >>> mocked success");
+    //     return Ok(());
+    // }
 
-    let rev_reg_def_req = build_rev_reg_request(issuer_did, rev_reg_def).await?;
+    // let rev_reg_def_req = build_rev_reg_request(issuer_did, rev_reg_def).await?;
 
-    let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, issuer_did, &rev_reg_def_req).await?;
+    // let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, issuer_did, &rev_reg_def_req).await?;
 
-    check_response(&response)
+    // check_response(&response)
+    todo!{}
 }
 
 pub async fn publish_rev_reg_delta(
@@ -109,20 +110,21 @@ pub async fn publish_rev_reg_delta(
     rev_reg_id: &str,
     revoc_reg_delta_json: &str,
 ) -> VcxCoreResult<String> {
-    trace!(
-        "publish_rev_reg_delta >>> issuer_did: {}, rev_reg_id: {}, revoc_reg_delta_json: {}",
-        issuer_did,
-        rev_reg_id,
-        revoc_reg_delta_json
-    );
+    // trace!(
+    //     "publish_rev_reg_delta >>> issuer_did: {}, rev_reg_id: {}, revoc_reg_delta_json: {}",
+    //     issuer_did,
+    //     rev_reg_id,
+    //     revoc_reg_delta_json
+    // );
 
-    let request = build_rev_reg_delta_request(issuer_did, rev_reg_id, revoc_reg_delta_json).await?;
+    // let request = build_rev_reg_delta_request(issuer_did, rev_reg_id, revoc_reg_delta_json).await?;
 
-    let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, issuer_did, &request).await?;
+    // let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, issuer_did, &request).await?;
 
-    check_response(&response)?;
+    // check_response(&response)?;
 
-    Ok(response)
+    // Ok(response)
+    todo!{}
 }
 
 // consider moving out of indy dir as this aggregates multiple calls

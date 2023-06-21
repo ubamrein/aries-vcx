@@ -20,28 +20,28 @@ use crate::{
         },
         pairwise::Pairwise,
     },
-    services::{CryptoService, LedgerService, PoolService},
+    services::{CryptoService},
 };
 
 pub struct DidController {
     wallet_service: Arc<WalletService>,
     crypto_service: Arc<CryptoService>,
-    ledger_service: Arc<LedgerService>,
-    pool_service: Arc<PoolService>,
+    // ledger_service: Arc<LedgerService>,
+    // pool_service: Arc<PoolService>,
 }
 
 impl DidController {
     pub(crate) fn new(
         wallet_service: Arc<WalletService>,
         crypto_service: Arc<CryptoService>,
-        ledger_service: Arc<LedgerService>,
-        pool_service: Arc<PoolService>,
+        // ledger_service: Arc<LedgerService>,
+        // pool_service: Arc<PoolService>,
     ) -> DidController {
         DidController {
             wallet_service,
             crypto_service,
-            ledger_service,
-            pool_service,
+            // ledger_service,
+            // pool_service,
         }
     }
 
@@ -1050,22 +1050,23 @@ impl DidController {
         pool_handle: PoolHandle,
         did: &DidValue,
     ) -> IndyResult<TheirDid> {
-        // TODO we need passing of my_did as identifier
-        // TODO: FIXME: Remove this unwrap by sending GetNymAck with the error.
-        let get_nym_request = self
-            .ledger_service
-            .build_get_nym_request(None, did)
-            .unwrap();
+        // // TODO we need passing of my_did as identifier
+        // // TODO: FIXME: Remove this unwrap by sending GetNymAck with the error.
+        // let get_nym_request = self
+        //     .ledger_service
+        //     .build_get_nym_request(None, did)
+        //     .unwrap();
 
-        let did = did.clone();
+        // let did = did.clone();
 
-        let get_nym_reply_result = self
-            .pool_service
-            .send_tx(pool_handle, &get_nym_request)
-            .await;
+        // let get_nym_reply_result = self
+        //     .pool_service
+        //     .send_tx(pool_handle, &get_nym_request)
+        //     .await;
 
-        self.get_nym_ack_process_and_store_their_did(wallet_handle, did, get_nym_reply_result)
-            .await
+        // self.get_nym_ack_process_and_store_their_did(wallet_handle, did, get_nym_reply_result)
+        //     .await
+        todo!{}
     }
 
     async fn _fetch_attrib_from_ledger(
@@ -1074,23 +1075,24 @@ impl DidController {
         pool_handle: PoolHandle,
         did: &DidValue,
     ) -> IndyResult<Endpoint> {
-        // TODO we need passing of my_did as identifier
-        // TODO: FIXME: Remove this unwrap by sending GetAttribAck with the error.
-        let get_attrib_request = self
-            .ledger_service
-            .build_get_attrib_request(None, did, Some("endpoint"), None, None)
-            .unwrap();
+        // // TODO we need passing of my_did as identifier
+        // // TODO: FIXME: Remove this unwrap by sending GetAttribAck with the error.
+        // let get_attrib_request = self
+        //     .ledger_service
+        //     .build_get_attrib_request(None, did, Some("endpoint"), None, None)
+        //     .unwrap();
 
-        let get_attrib_reply_result = self
-            .pool_service
-            .send_tx(pool_handle, &get_attrib_request)
-            .await;
+        // let get_attrib_reply_result = self
+        //     .pool_service
+        //     .send_tx(pool_handle, &get_attrib_request)
+        //     .await;
 
-        self._get_attrib_ack_process_store_endpoint_to_wallet(
-            wallet_handle,
-            get_attrib_reply_result,
-        )
-        .await
+        // self._get_attrib_ack_process_store_endpoint_to_wallet(
+        //     wallet_handle,
+        //     get_attrib_reply_result,
+        // )
+        // .await
+        todo!{}
     }
 
     async fn _wallet_get_my_did(

@@ -2,7 +2,7 @@ use vdrtools::{DidValue, Locator};
 
 use crate::errors::error::VcxCoreResult;
 use crate::global::settings;
-use crate::indy::ledger::transactions::{build_cred_def_request, check_response, sign_and_submit_to_ledger};
+// use crate::indy::ledger::transactions::{build_cred_def_request, check_response, sign_and_submit_to_ledger};
 use crate::indy::utils::parse_and_validate;
 use crate::{PoolHandle, WalletHandle};
 
@@ -13,18 +13,19 @@ pub async fn publish_cred_def(
     issuer_did: &str,
     cred_def_json: &str,
 ) -> VcxCoreResult<()> {
-    trace!(
-        "publish_cred_def >>> issuer_did: {}, cred_def_json: {}",
-        issuer_did,
-        cred_def_json
-    );
-    if settings::indy_mocks_enabled() {
-        debug!("publish_cred_def >>> mocked success");
-        return Ok(());
-    }
-    let cred_def_req = build_cred_def_request(issuer_did, cred_def_json).await?;
-    let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, issuer_did, &cred_def_req).await?;
-    check_response(&response)
+    // trace!(
+    //     "publish_cred_def >>> issuer_did: {}, cred_def_json: {}",
+    //     issuer_did,
+    //     cred_def_json
+    // );
+    // if settings::indy_mocks_enabled() {
+    //     debug!("publish_cred_def >>> mocked success");
+    //     return Ok(());
+    // }
+    // let cred_def_req = build_cred_def_request(issuer_did, cred_def_json).await?;
+    // let response = sign_and_submit_to_ledger(wallet_handle, pool_handle, issuer_did, &cred_def_req).await?;
+    // check_response(&response)
+    todo!{}
 }
 
 // consider relocating out of primitive

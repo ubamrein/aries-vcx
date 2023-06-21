@@ -1,5 +1,7 @@
 use indy_api_types::errors::prelude::*;
 use libc::size_t;
+
+
 use zeroize::Zeroize;
 
 pub const SEEDBYTES: usize = 32; // randombytes_seedbytes
