@@ -44,7 +44,7 @@ open class RustBuffer : Structure() {
 
     companion object {
         internal fun alloc(size: Int = 0) = rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_rustbuffer_alloc(size, status).also {
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_rustbuffer_alloc(size, status).also {
                 if(it.data == null) {
                    throw RuntimeException("RustBuffer.alloc() returned null data pointer (size=${size})")
                }
@@ -52,7 +52,7 @@ open class RustBuffer : Structure() {
         }
 
         internal fun free(buf: RustBuffer.ByValue) = rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_rustbuffer_free(buf, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_rustbuffer_free(buf, status)
         }
     }
 
@@ -264,155 +264,159 @@ internal interface _UniFFILib : Library {
         }
     }
 
-    fun ffi_vcx_b96f_ProfileHolder_object_free(`ptr`: Pointer,
+    fun ffi_vcx_a6e7_ProfileHolder_object_free(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun ffi_vcx_b96f_Connection_object_free(`ptr`: Pointer,
+    fun ffi_vcx_a6e7_Connection_object_free(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Connection_get_state(`ptr`: Pointer,
+    fun vcx_a6e7_Connection_get_state(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun vcx_b96f_Connection_unpack_msg(`ptr`: Pointer,`profile`: Pointer,`msg`: RustBuffer.ByValue,
+    fun vcx_a6e7_Connection_unpack_msg(`ptr`: Pointer,`profile`: Pointer,`msg`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun vcx_b96f_Connection_pairwise_info(`ptr`: Pointer,
+    fun vcx_a6e7_Connection_pairwise_info(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun vcx_b96f_Connection_accept_invitation(`ptr`: Pointer,`profile`: Pointer,`invitation`: RustBuffer.ByValue,
+    fun vcx_a6e7_Connection_accept_invitation(`ptr`: Pointer,`profile`: Pointer,`invitation`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Connection_handle_request(`ptr`: Pointer,`profile`: Pointer,`request`: RustBuffer.ByValue,`serviceEndpoint`: RustBuffer.ByValue,`routingKeys`: RustBuffer.ByValue,
+    fun vcx_a6e7_Connection_handle_request(`ptr`: Pointer,`profile`: Pointer,`request`: RustBuffer.ByValue,`serviceEndpoint`: RustBuffer.ByValue,`routingKeys`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Connection_handle_response(`ptr`: Pointer,`profile`: Pointer,`response`: RustBuffer.ByValue,
+    fun vcx_a6e7_Connection_handle_response(`ptr`: Pointer,`profile`: Pointer,`response`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Connection_send_request(`ptr`: Pointer,`profile`: Pointer,`serviceEndpoint`: RustBuffer.ByValue,`routingKeys`: RustBuffer.ByValue,
+    fun vcx_a6e7_Connection_send_request(`ptr`: Pointer,`profile`: Pointer,`serviceEndpoint`: RustBuffer.ByValue,`routingKeys`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Connection_send_response(`ptr`: Pointer,`profile`: Pointer,
+    fun vcx_a6e7_Connection_send_response(`ptr`: Pointer,`profile`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Connection_send_ack(`ptr`: Pointer,`profile`: Pointer,
+    fun vcx_a6e7_Connection_send_ack(`ptr`: Pointer,`profile`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun ffi_vcx_b96f_Issuance_object_free(`ptr`: Pointer,
-    _uniffi_out_err: RustCallStatus
-    ): Unit
-
-    fun vcx_b96f_Issuance_receive_offer(`ptr`: Pointer,`offer`: RustBuffer.ByValue,
-    _uniffi_out_err: RustCallStatus
-    ): Unit
-
-    fun vcx_b96f_Issuance_send_request(`ptr`: Pointer,`profile`: Pointer,
-    _uniffi_out_err: RustCallStatus
-    ): Unit
-
-    fun vcx_b96f_Issuance_process_credential(`ptr`: Pointer,`profile`: Pointer,`credential`: RustBuffer.ByValue,
-    _uniffi_out_err: RustCallStatus
-    ): Unit
-
-    fun vcx_b96f_Issuance_get_credential(`ptr`: Pointer,
+    fun vcx_a6e7_Connection_create_invitation(`ptr`: Pointer,`serviceEndpoint`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun vcx_b96f_Issuance_get_indy_cred(`ptr`: Pointer,`cred`: RustBuffer.ByValue,
-    _uniffi_out_err: RustCallStatus
-    ): RustBuffer.ByValue
-
-    fun ffi_vcx_b96f_NativeClient_object_free(`ptr`: Pointer,
+    fun ffi_vcx_a6e7_Issuance_object_free(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_NativeClient_new(`transport`: Long,
+    fun vcx_a6e7_Issuance_receive_offer(`ptr`: Pointer,`offer`: RustBuffer.ByValue,
+    _uniffi_out_err: RustCallStatus
+    ): Unit
+
+    fun vcx_a6e7_Issuance_send_request(`ptr`: Pointer,`profile`: Pointer,
+    _uniffi_out_err: RustCallStatus
+    ): Unit
+
+    fun vcx_a6e7_Issuance_process_credential(`ptr`: Pointer,`profile`: Pointer,`credential`: RustBuffer.ByValue,
+    _uniffi_out_err: RustCallStatus
+    ): Unit
+
+    fun vcx_a6e7_Issuance_get_credential(`ptr`: Pointer,
+    _uniffi_out_err: RustCallStatus
+    ): RustBuffer.ByValue
+
+    fun vcx_a6e7_Issuance_get_indy_cred(`ptr`: Pointer,`cred`: RustBuffer.ByValue,
+    _uniffi_out_err: RustCallStatus
+    ): RustBuffer.ByValue
+
+    fun ffi_vcx_a6e7_NativeClient_object_free(`ptr`: Pointer,
+    _uniffi_out_err: RustCallStatus
+    ): Unit
+
+    fun vcx_a6e7_NativeClient_new(`transport`: Long,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun ffi_vcx_b96f_Proof_object_free(`ptr`: Pointer,
+    fun ffi_vcx_a6e7_Proof_object_free(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Proof_create_from_request(`sourceId`: RustBuffer.ByValue,`presentationRequest`: RustBuffer.ByValue,
+    fun vcx_a6e7_Proof_create_from_request(`sourceId`: RustBuffer.ByValue,`presentationRequest`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun vcx_b96f_Proof_select_credentials(`ptr`: Pointer,`profile`: Pointer,
+    fun vcx_a6e7_Proof_select_credentials(`ptr`: Pointer,`profile`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun vcx_b96f_Proof_send_presentation(`ptr`: Pointer,`profile`: Pointer,`connection`: Pointer,`selectCredentials`: RustBuffer.ByValue,
+    fun vcx_a6e7_Proof_send_presentation(`ptr`: Pointer,`profile`: Pointer,`connection`: Pointer,`selectCredentials`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun ffi_vcx_b96f_Verify_object_free(`ptr`: Pointer,
+    fun ffi_vcx_a6e7_Verify_object_free(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Verify_create_from_request(`sourceId`: RustBuffer.ByValue,`presentationRequest`: RustBuffer.ByValue,
+    fun vcx_a6e7_Verify_create_from_request(`sourceId`: RustBuffer.ByValue,`presentationRequest`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun vcx_b96f_Verify_send_request(`ptr`: Pointer,`profile`: Pointer,`connection`: Pointer,
+    fun vcx_a6e7_Verify_send_request(`ptr`: Pointer,`profile`: Pointer,`connection`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_Verify_verify(`ptr`: Pointer,`profile`: Pointer,`connection`: Pointer,`proof`: RustBuffer.ByValue,
+    fun vcx_a6e7_Verify_verify(`ptr`: Pointer,`profile`: Pointer,`connection`: Pointer,`proof`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Byte
 
-    fun vcx_b96f_Verify_get_revealed_attr(`ptr`: Pointer,
+    fun vcx_a6e7_Verify_get_revealed_attr(`ptr`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun ffi_vcx_b96f_NativeTransport_init_callback(`callbackStub`: ForeignCallback,
+    fun ffi_vcx_a6e7_NativeTransport_init_callback(`callbackStub`: ForeignCallback,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun vcx_b96f_new_indy_profile(`walletConfig`: RustBuffer.ByValue,`client`: Pointer,
+    fun vcx_a6e7_new_indy_profile(`walletConfig`: RustBuffer.ByValue,`client`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun vcx_b96f_create_inviter(`profile`: Pointer,
+    fun vcx_a6e7_create_inviter(`profile`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun vcx_b96f_create_invitee(`profile`: Pointer,
+    fun vcx_a6e7_create_invitee(`profile`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun vcx_b96f_create_vc_receiver(`sourceId`: RustBuffer.ByValue,`connection`: Pointer,
+    fun vcx_a6e7_create_vc_receiver(`sourceId`: RustBuffer.ByValue,`connection`: Pointer,
     _uniffi_out_err: RustCallStatus
     ): Pointer
 
-    fun vcx_b96f_receive_msgs(`id`: RustBuffer.ByValue,
+    fun vcx_a6e7_receive_msgs(`id`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun ffi_vcx_b96f_rustbuffer_alloc(`size`: Int,
+    fun ffi_vcx_a6e7_rustbuffer_alloc(`size`: Int,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun ffi_vcx_b96f_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,
+    fun ffi_vcx_a6e7_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
-    fun ffi_vcx_b96f_rustbuffer_free(`buf`: RustBuffer.ByValue,
+    fun ffi_vcx_a6e7_rustbuffer_free(`buf`: RustBuffer.ByValue,
     _uniffi_out_err: RustCallStatus
     ): Unit
 
-    fun ffi_vcx_b96f_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Int,
+    fun ffi_vcx_a6e7_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Int,
     _uniffi_out_err: RustCallStatus
     ): RustBuffer.ByValue
 
@@ -700,6 +704,9 @@ public interface ConnectionInterface {
     @Throws(VcxUniFfiException::class)
     fun `sendAck`(`profile`: ProfileHolder)
     
+    @Throws(VcxUniFfiException::class)
+    fun `createInvitation`(`serviceEndpoint`: String): String
+    
 }
 
 class Connection(
@@ -716,7 +723,7 @@ class Connection(
      */
     override protected fun freeRustArcPtr() {
         rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_Connection_object_free(this.pointer, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_Connection_object_free(this.pointer, status)
         }
     }
 
@@ -724,7 +731,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `getState`(): ConnectionState =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_get_state(it,  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_get_state(it,  _status)
 }
         }.let {
             FfiConverterTypeConnectionState.lift(it)
@@ -733,7 +740,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `unpackMsg`(`profile`: ProfileHolder, `msg`: String): TypeMessage =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_unpack_msg(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`msg`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_unpack_msg(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`msg`),  _status)
 }
         }.let {
             FfiConverterTypeTypeMessage.lift(it)
@@ -742,7 +749,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `pairwiseInfo`(): PairwiseInfo =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_pairwise_info(it,  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_pairwise_info(it,  _status)
 }
         }.let {
             FfiConverterTypePairwiseInfo.lift(it)
@@ -751,7 +758,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `acceptInvitation`(`profile`: ProfileHolder, `invitation`: String) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_accept_invitation(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`invitation`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_accept_invitation(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`invitation`),  _status)
 }
         }
     
@@ -759,7 +766,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `handleRequest`(`profile`: ProfileHolder, `request`: String, `serviceEndpoint`: String, `routingKeys`: List<String>) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_handle_request(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`request`), FfiConverterString.lower(`serviceEndpoint`), FfiConverterSequenceString.lower(`routingKeys`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_handle_request(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`request`), FfiConverterString.lower(`serviceEndpoint`), FfiConverterSequenceString.lower(`routingKeys`),  _status)
 }
         }
     
@@ -767,7 +774,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `handleResponse`(`profile`: ProfileHolder, `response`: String) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_handle_response(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`response`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_handle_response(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`response`),  _status)
 }
         }
     
@@ -775,7 +782,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `sendRequest`(`profile`: ProfileHolder, `serviceEndpoint`: String, `routingKeys`: List<String>) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_send_request(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`serviceEndpoint`), FfiConverterSequenceString.lower(`routingKeys`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_send_request(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`serviceEndpoint`), FfiConverterSequenceString.lower(`routingKeys`),  _status)
 }
         }
     
@@ -783,7 +790,7 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `sendResponse`(`profile`: ProfileHolder) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_send_response(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_send_response(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
 }
         }
     
@@ -791,10 +798,19 @@ class Connection(
     @Throws(VcxUniFfiException::class)override fun `sendAck`(`profile`: ProfileHolder) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Connection_send_ack(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_send_ack(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
 }
         }
     
+    
+    @Throws(VcxUniFfiException::class)override fun `createInvitation`(`serviceEndpoint`: String): String =
+        callWithPointer {
+    rustCallWithError(VcxUniFfiException) { _status ->
+    _UniFFILib.INSTANCE.vcx_a6e7_Connection_create_invitation(it, FfiConverterString.lower(`serviceEndpoint`),  _status)
+}
+        }.let {
+            FfiConverterString.lift(it)
+        }
     
 
     
@@ -858,7 +874,7 @@ class Issuance(
      */
     override protected fun freeRustArcPtr() {
         rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_Issuance_object_free(this.pointer, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_Issuance_object_free(this.pointer, status)
         }
     }
 
@@ -866,7 +882,7 @@ class Issuance(
     @Throws(VcxUniFfiException::class)override fun `receiveOffer`(`offer`: String) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Issuance_receive_offer(it, FfiConverterString.lower(`offer`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Issuance_receive_offer(it, FfiConverterString.lower(`offer`),  _status)
 }
         }
     
@@ -874,7 +890,7 @@ class Issuance(
     @Throws(VcxUniFfiException::class)override fun `sendRequest`(`profile`: ProfileHolder) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Issuance_send_request(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Issuance_send_request(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
 }
         }
     
@@ -882,7 +898,7 @@ class Issuance(
     @Throws(VcxUniFfiException::class)override fun `processCredential`(`profile`: ProfileHolder, `credential`: String) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Issuance_process_credential(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`credential`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Issuance_process_credential(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterString.lower(`credential`),  _status)
 }
         }
     
@@ -890,7 +906,7 @@ class Issuance(
     @Throws(VcxUniFfiException::class)override fun `getCredential`(): CredentialEntry =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Issuance_get_credential(it,  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Issuance_get_credential(it,  _status)
 }
         }.let {
             FfiConverterTypeCredentialEntry.lift(it)
@@ -899,7 +915,7 @@ class Issuance(
     @Throws(VcxUniFfiException::class)override fun `getIndyCred`(`cred`: String): SocialId =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Issuance_get_indy_cred(it, FfiConverterString.lower(`cred`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Issuance_get_indy_cred(it, FfiConverterString.lower(`cred`),  _status)
 }
         }.let {
             FfiConverterTypeSocialId.lift(it)
@@ -944,7 +960,7 @@ class NativeClient(
     constructor(`transport`: NativeTransport) :
         this(
     rustCall() { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_NativeClient_new(FfiConverterTypeNativeTransport.lower(`transport`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_NativeClient_new(FfiConverterTypeNativeTransport.lower(`transport`), _status)
 })
 
     /**
@@ -957,7 +973,7 @@ class NativeClient(
      */
     override protected fun freeRustArcPtr() {
         rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_NativeClient_object_free(this.pointer, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_NativeClient_object_free(this.pointer, status)
         }
     }
 
@@ -1009,7 +1025,7 @@ class ProfileHolder(
      */
     override protected fun freeRustArcPtr() {
         rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_ProfileHolder_object_free(this.pointer, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_ProfileHolder_object_free(this.pointer, status)
         }
     }
 
@@ -1067,7 +1083,7 @@ class Proof(
      */
     override protected fun freeRustArcPtr() {
         rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_Proof_object_free(this.pointer, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_Proof_object_free(this.pointer, status)
         }
     }
 
@@ -1075,7 +1091,7 @@ class Proof(
     @Throws(VcxUniFfiException::class)override fun `selectCredentials`(`profile`: ProfileHolder): String =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Proof_select_credentials(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Proof_select_credentials(it, FfiConverterTypeProfileHolder.lower(`profile`),  _status)
 }
         }.let {
             FfiConverterString.lift(it)
@@ -1084,7 +1100,7 @@ class Proof(
     @Throws(VcxUniFfiException::class)override fun `sendPresentation`(`profile`: ProfileHolder, `connection`: Connection, `selectCredentials`: String) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Proof_send_presentation(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterTypeConnection.lower(`connection`), FfiConverterString.lower(`selectCredentials`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Proof_send_presentation(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterTypeConnection.lower(`connection`), FfiConverterString.lower(`selectCredentials`),  _status)
 }
         }
     
@@ -1094,7 +1110,7 @@ class Proof(
         fun `createFromRequest`(`sourceId`: String, `presentationRequest`: String): Proof =
             Proof(
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Proof_create_from_request(FfiConverterString.lower(`sourceId`), FfiConverterString.lower(`presentationRequest`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Proof_create_from_request(FfiConverterString.lower(`sourceId`), FfiConverterString.lower(`presentationRequest`), _status)
 })
         
     }
@@ -1153,7 +1169,7 @@ class Verify(
      */
     override protected fun freeRustArcPtr() {
         rustCall() { status ->
-            _UniFFILib.INSTANCE.ffi_vcx_b96f_Verify_object_free(this.pointer, status)
+            _UniFFILib.INSTANCE.ffi_vcx_a6e7_Verify_object_free(this.pointer, status)
         }
     }
 
@@ -1161,7 +1177,7 @@ class Verify(
     @Throws(VcxUniFfiException::class)override fun `sendRequest`(`profile`: ProfileHolder, `connection`: Connection) =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Verify_send_request(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterTypeConnection.lower(`connection`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Verify_send_request(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterTypeConnection.lower(`connection`),  _status)
 }
         }
     
@@ -1169,7 +1185,7 @@ class Verify(
     @Throws(VcxUniFfiException::class)override fun `verify`(`profile`: ProfileHolder, `connection`: Connection, `proof`: String): Boolean =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Verify_verify(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterTypeConnection.lower(`connection`), FfiConverterString.lower(`proof`),  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Verify_verify(it, FfiConverterTypeProfileHolder.lower(`profile`), FfiConverterTypeConnection.lower(`connection`), FfiConverterString.lower(`proof`),  _status)
 }
         }.let {
             FfiConverterBoolean.lift(it)
@@ -1178,7 +1194,7 @@ class Verify(
     @Throws(VcxUniFfiException::class)override fun `getRevealedAttr`(): List<RevealedAttribute> =
         callWithPointer {
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Verify_get_revealed_attr(it,  _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Verify_get_revealed_attr(it,  _status)
 }
         }.let {
             FfiConverterSequenceTypeRevealedAttribute.lift(it)
@@ -1189,7 +1205,7 @@ class Verify(
         fun `createFromRequest`(`sourceId`: String, `presentationRequest`: String): Verify =
             Verify(
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_Verify_create_from_request(FfiConverterString.lower(`sourceId`), FfiConverterString.lower(`presentationRequest`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_Verify_create_from_request(FfiConverterString.lower(`sourceId`), FfiConverterString.lower(`presentationRequest`), _status)
 })
         
     }
@@ -1782,7 +1798,7 @@ public object FfiConverterTypeNativeTransport: FfiConverterCallbackInterface<Nat
 ) {
     override fun register(lib: _UniFFILib) {
         rustCall() { status ->
-            lib.ffi_vcx_b96f_NativeTransport_init_callback(this.foreignCallback, status)
+            lib.ffi_vcx_a6e7_NativeTransport_init_callback(this.foreignCallback, status)
         }
     }
 }
@@ -1895,7 +1911,7 @@ public object FfiConverterSequenceTypeRevealedAttribute: FfiConverterRustBuffer<
 fun `newIndyProfile`(`walletConfig`: WalletConfig, `client`: NativeClient): ProfileHolder {
     return FfiConverterTypeProfileHolder.lift(
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_new_indy_profile(FfiConverterTypeWalletConfig.lower(`walletConfig`), FfiConverterTypeNativeClient.lower(`client`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_new_indy_profile(FfiConverterTypeWalletConfig.lower(`walletConfig`), FfiConverterTypeNativeClient.lower(`client`), _status)
 })
 }
 
@@ -1905,7 +1921,7 @@ fun `newIndyProfile`(`walletConfig`: WalletConfig, `client`: NativeClient): Prof
 fun `createInviter`(`profile`: ProfileHolder): Connection {
     return FfiConverterTypeConnection.lift(
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_create_inviter(FfiConverterTypeProfileHolder.lower(`profile`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_create_inviter(FfiConverterTypeProfileHolder.lower(`profile`), _status)
 })
 }
 
@@ -1915,7 +1931,7 @@ fun `createInviter`(`profile`: ProfileHolder): Connection {
 fun `createInvitee`(`profile`: ProfileHolder): Connection {
     return FfiConverterTypeConnection.lift(
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_create_invitee(FfiConverterTypeProfileHolder.lower(`profile`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_create_invitee(FfiConverterTypeProfileHolder.lower(`profile`), _status)
 })
 }
 
@@ -1925,7 +1941,7 @@ fun `createInvitee`(`profile`: ProfileHolder): Connection {
 fun `createVcReceiver`(`sourceId`: String, `connection`: Connection): Issuance {
     return FfiConverterTypeIssuance.lift(
     rustCallWithError(VcxUniFfiException) { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_create_vc_receiver(FfiConverterString.lower(`sourceId`), FfiConverterTypeConnection.lower(`connection`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_create_vc_receiver(FfiConverterString.lower(`sourceId`), FfiConverterTypeConnection.lower(`connection`), _status)
 })
 }
 
@@ -1934,7 +1950,7 @@ fun `createVcReceiver`(`sourceId`: String, `connection`: Connection): Issuance {
 fun `receiveMsgs`(`id`: String): Messages {
     return FfiConverterTypeMessages.lift(
     rustCall() { _status ->
-    _UniFFILib.INSTANCE.vcx_b96f_receive_msgs(FfiConverterString.lower(`id`), _status)
+    _UniFFILib.INSTANCE.vcx_a6e7_receive_msgs(FfiConverterString.lower(`id`), _status)
 })
 }
 

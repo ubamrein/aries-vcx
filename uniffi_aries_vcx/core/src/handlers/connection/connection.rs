@@ -1,4 +1,3 @@
-use diddoc_legacy::aries::diddoc::AriesDidDoc;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 

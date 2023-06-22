@@ -78,6 +78,9 @@ interface Connection {
 
     [Throws=VcxUniFFIError]
     void send_ack(ProfileHolder profile);
+
+    [Throws=VcxUniFFIError]
+    string create_invitation(string service_endpoint);
 };
 
 
