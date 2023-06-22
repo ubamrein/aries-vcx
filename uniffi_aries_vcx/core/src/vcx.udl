@@ -147,3 +147,20 @@ interface Proof {
     [Throws=VcxUniFFIError]
     void send_presentation(ProfileHolder profile, Connection connection, string select_credentials);
 };
+
+dictionary RevealedAttribute {
+    string name;
+    string value;
+    string encoded;
+};
+
+interface Verify {
+    [Name=create_from_request,Throws=VcxUniFFIError]
+    constructor(string source_id, string presentation_request);
+    [Throws=VcxUniFFIError]
+    void send_request(ProfileHolder profile, Connection connection);
+    [Throws=VcxUniFFIError]
+    boolean verify(ProfileHolder profile, Connection connection, string proof);
+    [Throws=VcxUniFFIError]
+    sequence<RevealedAttribute> get_revealed_attr();
+};

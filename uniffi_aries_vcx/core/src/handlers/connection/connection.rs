@@ -262,12 +262,14 @@ mod tests {
     use std::{sync::Arc, time::Duration};
 
     use aries_vcx::{
-        aries_vcx_core::indy::wallet::WalletConfigBuilder,
+        aries_vcx_core::{indy::wallet::WalletConfigBuilder, anoncreds::indy_anoncreds::IndySdkAnonCreds},
+        common::{proofs::{proof_request::ProofRequestData, proof_request_internal::AttrInfo}, primitives::credential_schema::Schema},
+        handlers::proof_presentation::types::{RetrievedCredentials, SelectedCredentials},
         messages::{
             msg_fields::protocols::basic_message::{BasicMessage, BasicMessageContent, BasicMessageDecorators},
             msg_parts::MsgParts,
             AriesMessage,
-        },
+        }, core::profile::vdrtools_profile,
     };
     use chrono::Utc;
     use serde_json::Value;
@@ -277,7 +279,13 @@ mod tests {
             http_client::{self, NativeClient},
             profile::{new_indy_profile, ProfileHolder},
         },
-        handlers::connection::connection::create_invitee,
+        handlers::{
+            connection::connection::create_invitee,
+            issuance::issuance::create_vc_receiver,
+            proof::{proof::Proof, verify::Verify},
+            TypeMessage,
+        },
+        runtime::block_on,
     };
 
     use super::{create_inviter, Connection};
@@ -348,6 +356,46 @@ mod tests {
             .unwrap();
         ((profile, inviter), (invitee_profile, invitee))
     }
+
+    fn establish_connection_with_invite(invitation: &str) -> (Arc<ProfileHolder>, Arc<Connection>, Vec<TypeMessage>) {
+        let invitee_native_client = NativeClient::new(Box::new(http_client::HttpClient));
+        let invitee_wallet_config = WalletConfigBuilder::default()
+            .wallet_name("test-invitee")
+            .wallet_key("1234")
+            .wallet_key_derivation("ARGON2I_MOD")
+            .build()
+            .unwrap();
+        let invitee_profile = new_indy_profile(invitee_wallet_config, Arc::new(invitee_native_client)).unwrap();
+        let invitee = create_invitee(invitee_profile.clone()).unwrap();
+
+        invitee
+            .accept_invitation(invitee_profile.clone(), invitation.to_string())
+            .unwrap();
+        invitee
+            .send_request(invitee_profile.clone(), INVITEE_URL_INBOUND.to_string(), vec![])
+            .unwrap();
+        println!("give it some time...");
+        std::thread::sleep(Duration::from_secs(3));
+        let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+        let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+        let invitee_profile_clone = invitee_profile.clone();
+        let invitee_clone = invitee.clone();
+        let decrypted_vals = msgs
+            .into_iter()
+            .map(|m| {
+                invitee_clone
+                    .unpack_msg(invitee_profile_clone.clone(), m.to_string())
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let connection_response = decrypted_vals.iter().find(|m| m.ty.contains("response")).unwrap();
+
+        invitee
+            .handle_response(invitee_profile.clone(), connection_response.content.to_string())
+            .unwrap();
+        let _ = invitee.send_ack(invitee_profile.clone());
+        (invitee_profile, invitee, decrypted_vals)
+    }
     #[test]
     fn test_invitation() {
         // clean pipe
@@ -393,5 +441,153 @@ mod tests {
             Some(Value::String("Welt".to_string())),
             msg_value.get("content").cloned()
         );
+    }
+
+    static NAME_ATTR: &str = r#"
+{
+    "name": "name",
+    "restrictions": [
+        {
+            "cred_def_id": "2xS9NY4w46MUCXEtAWT7Gf:3:CL:47:social-id"
+        }
+    ]
+}"#;
+    #[test]
+    fn test_proof_api() {
+        {
+            let _ = ureq::get(INVITEE_URL_MAILBOX).call();
+            let _ = ureq::get(INVITER_URL_MAILBOX).call();
+
+            // use adnovum api to get creds
+            let adnovum_invitee = establish_connection_with_invite(
+                r#""#,
+            );
+            println!("Connection established, try getting credentials");
+            let receiver = create_vc_receiver("test".to_string(), adnovum_invitee.1.clone()).unwrap();
+            let mut got_offer = false;
+
+            for m in &adnovum_invitee.2 {
+                if m.ty.contains("offer-credential") {
+                    receiver.receive_offer(m.content.to_string()).unwrap();
+                    receiver.send_request(adnovum_invitee.0.clone()).unwrap();
+                    got_offer = true;
+                    println!("go offer");
+                    break;
+                }
+            }
+
+            while !got_offer {
+                let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+                let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+                for m in msgs {
+                    let m = adnovum_invitee
+                        .1
+                        .unpack_msg(adnovum_invitee.0.clone(), m.to_string())
+                        .unwrap();
+                    println!("{}", m.ty);
+                    if m.ty.contains("offer-credential") {
+                        receiver.receive_offer(m.content).unwrap();
+                        receiver.send_request(adnovum_invitee.0.clone()).unwrap();
+                        got_offer = true;
+                        println!("go offer");
+                        break;
+                    }
+                }
+            }
+            println!("Credential request sent waiting for response");
+            let mut got_creds = false;
+            while !got_creds {
+                let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+                let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+
+                for m in msgs {
+                    let m = adnovum_invitee
+                        .1
+                        .unpack_msg(adnovum_invitee.0.clone(), m.to_string())
+                        .unwrap();
+                    println!("{}", m.ty);
+                    if m.ty.contains("1.0/issue-credential") {
+                        receiver
+                            .process_credential(adnovum_invitee.0.clone(), m.content)
+                            .unwrap();
+
+                        got_creds = true;
+                        let entry = receiver.get_credential().unwrap();
+                        println!("{}", entry.credential_id);
+                        println!("{}", entry.credential);
+                        break;
+                    }
+                }
+            }
+            println!("we received the credentials");
+            drop(receiver);
+            drop(adnovum_invitee);
+        }
+
+        // establish_connection between two parties
+        let (inviter, invitee) = establish_connection();
+        // start proof
+        let _ = ureq::get(INVITEE_URL_MAILBOX).call();
+        let _ = ureq::get(INVITER_URL_MAILBOX).call();
+
+        let the_profile = inviter.0.clone();
+        let proof_request = block_on(async move {
+            let attr_info: AttrInfo = serde_json::from_str(NAME_ATTR).unwrap();
+            ProofRequestData::create(&the_profile.inner, "Check stuff")
+                .await
+                .unwrap()
+                .set_requested_attributes_as_vec(vec![attr_info])
+                .unwrap()
+        });
+        let proof_request = serde_json::to_string(&proof_request).unwrap();
+        println!("{proof_request}");
+        let verifier = Verify::create_from_request("test".to_string(), proof_request).unwrap();
+        verifier.send_request(inviter.0.clone(), inviter.1.clone()).unwrap();
+
+        let mut msgs: Vec<Value> = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_json().unwrap();
+        assert_eq!(msgs.len(), 1);
+        let msg = msgs.pop().unwrap();
+
+        let msg = invitee.1.unpack_msg(invitee.0.clone(), msg.to_string()).unwrap();
+        println!("{}",msg.content);
+        let proofer = Proof::create_from_request("test".to_string(), msg.content).unwrap();
+        let creds: RetrievedCredentials =
+            serde_json::from_str(&proofer.select_credentials(invitee.0.clone()).unwrap()).unwrap();
+        println!("{:?}", creds.credentials_by_referent);
+        let first = &(&creds.credentials_by_referent["attribute_0"])[0];
+
+        let mut sc = SelectedCredentials::default();
+        sc.select_credential_for_referent_from_retrieved("attribute_0".to_string(), first.to_owned(), None);
+        println!("try sending proof");
+        proofer
+            .send_presentation(
+                invitee.0.clone(),
+                invitee.1.clone(),
+                serde_json::to_string(&sc).unwrap(),
+            )
+            .unwrap();
+
+        let mut msgs: Vec<Value> = ureq::get(INVITER_URL_MAILBOX).call().unwrap().into_json().unwrap();
+        assert_eq!(msgs.len(), 1);
+        let msg = msgs.pop().unwrap();
+        let msg = inviter.1.unpack_msg(inviter.0.clone(), msg.to_string()).unwrap();
+        println!("{}", msg.content);
+        let result = verifier
+            .verify(inviter.0.clone(), inviter.1.clone(), msg.content)
+            .unwrap();
+        assert!(result);
+
+        let revealed = verifier.get_revealed_attr().unwrap();
+        for r in revealed {
+            println!("{}: {}", r.name, r.value)
+        }
+    }
+
+    #[test]
+    fn test_deserialize_schema() {
+        let s = include_str!("../../../schema.json");
+        let schema : vdrtools::Schema = serde_json::from_str(s).unwrap();
+        println!("{:?}", schema);
+
     }
 }

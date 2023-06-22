@@ -64,7 +64,3 @@ impl Proof {
         Ok(())
     }
 }
-
-pub fn test() {
-    let prover: Prover = Prover::create("").unwrap();
-}

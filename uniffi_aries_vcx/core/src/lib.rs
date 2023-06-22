@@ -14,5 +14,5 @@ use aries_vcx::{aries_vcx_core::indy::wallet::WalletConfig, protocols::connectio
 use handlers::{
     connection::{connection::*, *},
     issuance::{issuance::*, *},
-    proof::{proof::*, *}
+    proof::{proof::*, verify::*, *},
 };

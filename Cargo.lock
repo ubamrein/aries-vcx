@@ -4884,6 +4884,7 @@ dependencies = [
  "base64 0.21.2",
  "chrono",
  "diddoc_legacy",
+ "libvdrtools",
  "log",
  "once_cell",
  "openssl",
