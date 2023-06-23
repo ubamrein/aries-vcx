@@ -68,7 +68,6 @@ impl Issuance {
         let credential: IssueCredential = serde_json::from_str(&credential)?;
         let connection = self.connection.clone();
         let mut holder = guard.clone();
-
         block_on(async {
             let send_message = connection.send_message(profile.clone());
             holder
@@ -102,9 +101,17 @@ impl Issuance {
     }
 }
 
+pub fn get_indy_credential(profile: Arc<ProfileHolder>, cred_id: String) -> VcxUniFFIResult<String> {
+    let creds = block_on(async move { profile.inner.inject_anoncreds().prover_get_credential(&cred_id).await })?;
+    println!("{creds}");
+    Ok(creds)
+}
+
 #[cfg(test)]
 mod test {
-    use aries_vcx::messages::{msg_fields::protocols::cred_issuance::issue_credential::IssueCredential, decorators::attachment::AttachmentType};
+    use aries_vcx::messages::{
+        decorators::attachment::AttachmentType, msg_fields::protocols::cred_issuance::issue_credential::IssueCredential,
+    };
     use base64::Engine;
     use serde_json::Value;
 
@@ -142,23 +149,23 @@ struct Cred {
     email: CredEntry,
     name: CredEntry,
     phone: CredEntry,
-    photo: CredEntry
+    photo: CredEntry,
 }
 
 impl From<Cred> for SocialId {
     fn from(value: Cred) -> Self {
         Self {
-            name : value.name.raw,
+            name: value.name.raw,
             email: value.email.raw,
             phone: value.phone.raw,
-            photo: value.photo.raw
+            photo: value.photo.raw,
         }
     }
 }
 #[derive(Deserialize)]
 struct CredEntry {
     encoded: String,
-    raw: String
+    raw: String,
 }
 pub struct CredentialEntry {
     pub credential_id: String,

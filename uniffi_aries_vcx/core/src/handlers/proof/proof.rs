@@ -11,7 +11,7 @@ use std::{
 
 use aries_vcx::{
     errors::error::AriesVcxError,
-    handlers::proof_presentation::{prover::Prover, types::SelectedCredentials},
+    handlers::proof_presentation::{prover::Prover, types::{SelectedCredentials, RetrievedCredentials}},
     messages::msg_fields::protocols::present_proof::request::RequestPresentation,
 };
 
@@ -40,6 +40,18 @@ impl Proof {
         })?;
         log::debug!("{:?}", creds);
         Ok(serde_json::to_string(&creds).unwrap())
+    }
+    pub fn choose_credentials(&self, selected_credentials: String) -> VcxUniFFIResult<String> {
+        let creds : RetrievedCredentials = serde_json::from_str(&selected_credentials)?;
+        let mut selected : SelectedCredentials = SelectedCredentials::default();
+        for (referent, value) in creds.credentials_by_referent {
+            if value.is_empty() {
+                continue;
+            }
+             let first = value[0].clone();
+             selected.select_credential_for_referent_from_retrieved(referent, first, None);
+        }
+        Ok(serde_json::to_string(&selected)?)
     }
     pub fn send_presentation(
         &self,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use aries_vcx::aries_vcx_core::anoncreds::base_anoncreds::BaseAnonCreds;
 use aries_vcx::aries_vcx_core::anoncreds::indy_anoncreds::IndySdkAnonCreds;
-use aries_vcx::aries_vcx_core::errors::error::VcxCoreResult;
+use aries_vcx::aries_vcx_core::errors::error::{AriesVcxCoreError, AriesVcxCoreErrorKind, VcxCoreResult};
 use aries_vcx::aries_vcx_core::indy::wallet::{
     close_wallet, create_wallet_with_master_secret, open_wallet, WalletConfig,
 };
@@ -15,9 +15,10 @@ use aries_vcx::aries_vcx_core::wallet::indy_wallet::IndySdkWallet;
 use aries_vcx::aries_vcx_core::WalletHandle;
 // use aries_vcx::aries_vcx_core::PoolHandle;
 use aries_vcx::core::profile::profile::Profile;
-use aries_vcx::errors::error::VcxResult;
+use aries_vcx::errors::error::{AriesVcxErrorKind, VcxResult};
 use async_trait::async_trait;
 
+use crate::errors::error::VcxUniFFIError;
 use crate::{errors::error::VcxUniFFIResult, runtime::block_on};
 use aries_vcx::transport::Transport;
 
@@ -40,11 +41,12 @@ impl Drop for ProfileHolder {
 pub fn new_indy_profile(
     wallet_config: WalletConfig,
     native_client: Arc<NativeClient>,
+    ledger_base_url: String,
 ) -> VcxUniFFIResult<Arc<ProfileHolder>> {
     block_on(async {
         create_wallet_with_master_secret(&wallet_config).await?;
         let wh = open_wallet(&wallet_config).await?;
-        let inner: Arc<dyn Profile> = Arc::new(DummyProfile(wh));
+        let inner: Arc<dyn Profile> = Arc::new(DummyProfile(wh, ledger_base_url));
         let transport: Arc<dyn Transport> = native_client;
 
         Ok(Arc::new(ProfileHolder {
@@ -56,7 +58,7 @@ pub fn new_indy_profile(
 }
 
 #[derive(Debug, Clone)]
-pub struct DummyProfile(WalletHandle);
+pub struct DummyProfile(WalletHandle, String);
 
 impl Profile for DummyProfile {
     fn inject_indy_ledger_read(&self) -> Arc<dyn IndyLedgerRead> {
@@ -73,7 +75,7 @@ impl Profile for DummyProfile {
     }
 
     fn inject_anoncreds_ledger_read(&self) -> Arc<dyn AnoncredsLedgerRead> {
-        let d: Arc<dyn AnoncredsLedgerRead> = Arc::new(DummyLedgerRead);
+        let d: Arc<dyn AnoncredsLedgerRead> = Arc::new(DummyLedgerRead(self.1.clone()));
         d
     }
 
@@ -92,21 +94,39 @@ impl Profile for DummyProfile {
 }
 
 #[derive(Debug, Clone)]
-struct DummyLedgerRead;
+struct DummyLedgerRead(String);
 
 #[async_trait]
 impl AnoncredsLedgerRead for DummyLedgerRead {
-    async fn get_schema(&self, schema_id: &str, submitter_did: Option<&str>) -> VcxCoreResult<String> {
-        let schema_def = include_str!("../../schema.json");
-        VcxCoreResult::Ok(schema_def.to_string())
+    async fn get_schema(&self, schema_id: &str, _submitter_did: Option<&str>) -> VcxCoreResult<String> {
+        println!("{schema_id}");
+        let res = ureq::get(&format!("{}/schema/{schema_id}", self.0))
+            .call()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+            .into_string()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
+        println!("{res}");
+        VcxCoreResult::Ok(res)
     }
-    async fn get_cred_def(&self, cred_def_id: &str, submitter_did: Option<&str>) -> VcxCoreResult<String> {
-        let cred_def = include_str!("../../credDef2.json");
-        VcxCoreResult::Ok(cred_def.to_string())
+    async fn get_cred_def(&self, cred_def_id: &str, _submitter_did: Option<&str>) -> VcxCoreResult<String> {
+        println!("{cred_def_id}");
+        let res = ureq::get(&format!("{}/cred/{cred_def_id}", self.0))
+            .call()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+            .into_string()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
+        println!("{res}");
+        VcxCoreResult::Ok(res)
     }
     async fn get_rev_reg_def_json(&self, rev_reg_id: &str) -> VcxCoreResult<String> {
-        let cred_def = include_str!("../../revregdef.json");
-        VcxCoreResult::Ok(cred_def.to_string())
+        println!("{rev_reg_id}");
+        let res = ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0))
+            .call()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+            .into_string()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
+        println!("{res}");
+        VcxCoreResult::Ok(res)
     }
     async fn get_rev_reg_delta_json(
         &self,

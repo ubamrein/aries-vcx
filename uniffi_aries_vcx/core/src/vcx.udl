@@ -117,7 +117,7 @@ dictionary CredentialEntry {
 
 namespace vcx {
     [Throws=VcxUniFFIError]
-    ProfileHolder new_indy_profile(WalletConfig wallet_config, NativeClient client);
+    ProfileHolder new_indy_profile(WalletConfig wallet_config, NativeClient client, string ledger_base_url);
 
     [Throws=VcxUniFFIError]
     Connection create_inviter(ProfileHolder profile);
@@ -128,6 +128,9 @@ namespace vcx {
     [Throws=VcxUniFFIError]
     Issuance create_vc_receiver(string source_id, Connection connection);
     Messages receive_msgs(string id);
+
+     [Throws=VcxUniFFIError]
+     string get_indy_credential(ProfileHolder profile, string cred_id);
 
 };
 
@@ -148,7 +151,10 @@ interface Proof {
     [Throws=VcxUniFFIError]
     string select_credentials(ProfileHolder profile);
     [Throws=VcxUniFFIError]
+    string choose_credentials(string select_credentials);
+    [Throws=VcxUniFFIError]
     void send_presentation(ProfileHolder profile, Connection connection, string select_credentials);
+
 };
 
 dictionary RevealedAttribute {

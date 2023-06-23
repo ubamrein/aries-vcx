@@ -55,6 +55,7 @@ impl Connection {
                 error_msg: "Wrong encoding".to_string(),
             })?;
         let decrypted_package: Value = serde_json::from_str(decrypted_package)?;
+        println!("{decrypted_package}");
         let msg = decrypted_package
             .get("message")
             .ok_or_else(|| VcxUniFFIError::SerializationError {
@@ -261,16 +262,15 @@ mod tests {
     use std::{sync::Arc, time::Duration};
 
     use aries_vcx::{
-        aries_vcx_core::{indy::wallet::WalletConfigBuilder, anoncreds::indy_anoncreds::IndySdkAnonCreds},
-        common::{proofs::{proof_request::ProofRequestData, proof_request_internal::AttrInfo}, primitives::credential_schema::Schema},
+        aries_vcx_core::indy::wallet::WalletConfigBuilder,
+        common::proofs::{proof_request::ProofRequestData, proof_request_internal::AttrInfo},
         handlers::proof_presentation::types::{RetrievedCredentials, SelectedCredentials},
         messages::{
-            msg_fields::protocols::basic_message::{BasicMessage, BasicMessageContent, BasicMessageDecorators},
+            msg_fields::protocols::basic_message::{BasicMessageContent, BasicMessageDecorators},
             msg_parts::MsgParts,
             AriesMessage,
-        }, core::profile::vdrtools_profile,
+        },
     };
-    use chrono::Utc;
     use serde_json::Value;
 
     use crate::{
@@ -280,7 +280,7 @@ mod tests {
         },
         handlers::{
             connection::connection::create_invitee,
-            issuance::issuance::create_vc_receiver,
+            issuance::issuance::{create_vc_receiver, get_indy_credential},
             proof::{proof::Proof, verify::Verify},
             TypeMessage,
         },
@@ -292,6 +292,8 @@ mod tests {
     static INVITER_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-inviter";
     static INVITEE_URL_INBOUND: &str = "https://did-relay.ubique.ch/msg/fancy-pancy-invitee";
     static INVITEE_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-invitee";
+
+    static LEDGER_BASE_URL: &str = "https://did-relay.ubique.ch";
 
     fn establish_connection() -> (
         (Arc<ProfileHolder>, Arc<Connection>),
@@ -311,12 +313,17 @@ mod tests {
             .wallet_key_derivation("ARGON2I_MOD")
             .build()
             .unwrap();
-        let profile = new_indy_profile(wallet_config, Arc::new(native_client)).unwrap();
+        let profile = new_indy_profile(wallet_config, Arc::new(native_client), LEDGER_BASE_URL.to_string()).unwrap();
         let inviter = create_inviter(profile.clone()).unwrap();
         let invitation = inviter.create_invitation(INVITER_URL_INBOUND.to_string()).unwrap();
         println!("{invitation}");
 
-        let invitee_profile = new_indy_profile(invitee_wallet_config, Arc::new(invitee_native_client)).unwrap();
+        let invitee_profile = new_indy_profile(
+            invitee_wallet_config,
+            Arc::new(invitee_native_client),
+            LEDGER_BASE_URL.to_string(),
+        )
+        .unwrap();
 
         let invitee = create_invitee(invitee_profile.clone()).unwrap();
         invitee.accept_invitation(invitee_profile.clone(), invitation).unwrap();
@@ -364,7 +371,12 @@ mod tests {
             .wallet_key_derivation("ARGON2I_MOD")
             .build()
             .unwrap();
-        let invitee_profile = new_indy_profile(invitee_wallet_config, Arc::new(invitee_native_client)).unwrap();
+        let invitee_profile = new_indy_profile(
+            invitee_wallet_config,
+            Arc::new(invitee_native_client),
+            LEDGER_BASE_URL.to_string(),
+        )
+        .unwrap();
         let invitee = create_invitee(invitee_profile.clone()).unwrap();
 
         invitee
@@ -402,7 +414,7 @@ mod tests {
         let _ = ureq::get(INVITER_URL_MAILBOX).call();
 
         let (inviter, invitee) = establish_connection();
-
+        println!("-------> Connection established <---------");
         let content = BasicMessageContent::new("Hallo".to_string(), chrono::Utc::now());
         let msg = AriesMessage::BasicMessage(MsgParts::with_decorators(
             "test-invitee".to_string(),
@@ -415,6 +427,7 @@ mod tests {
         let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
         assert_eq!(msgs.len(), 1);
         let msg = serde_json::to_string(&msgs[0]).unwrap();
+        println!("Encrypted Message: {msg}");
         let msg = inviter.1.unpack_msg(inviter.0.clone(), msg).unwrap();
         let msg_value: Value = serde_json::from_str(&msg.content).unwrap();
         assert_eq!(
@@ -429,7 +442,6 @@ mod tests {
             BasicMessageDecorators::default(),
         ));
         inviter.1.send_custom_message(inviter.0.clone(), msg).unwrap();
-
         let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
         let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
         assert_eq!(msgs.len(), 1);
@@ -459,7 +471,7 @@ mod tests {
 
             // use adnovum api to get creds
             let adnovum_invitee = establish_connection_with_invite(
-                r#""#,
+                r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "01252965-5132-423b-b05e-93932b462f5b", "label": "SSI Self-Service Portal", "recipientKeys": ["83iHA3Pku6Rgq7o16BGyqv4sjg3MuQ4mu4CwMJZD7ze3"], "serviceEndpoint": "https://ssi-start.adnovum.com/didcomm"}"#,
             );
             println!("Connection established, try getting credentials");
             let receiver = create_vc_receiver("test".to_string(), adnovum_invitee.1.clone()).unwrap();
@@ -514,6 +526,10 @@ mod tests {
                         let entry = receiver.get_credential().unwrap();
                         println!("{}", entry.credential_id);
                         println!("{}", entry.credential);
+                        println!(
+                            "-----!!!>{}",
+                            get_indy_credential(adnovum_invitee.0.clone(), entry.credential_id.clone()).unwrap()
+                        );
                         break;
                     }
                 }
@@ -548,7 +564,7 @@ mod tests {
         let msg = msgs.pop().unwrap();
 
         let msg = invitee.1.unpack_msg(invitee.0.clone(), msg.to_string()).unwrap();
-        println!("{}",msg.content);
+        println!("{}", msg.content);
         let proofer = Proof::create_from_request("test".to_string(), msg.content).unwrap();
         let creds: RetrievedCredentials =
             serde_json::from_str(&proofer.select_credentials(invitee.0.clone()).unwrap()).unwrap();
@@ -585,8 +601,7 @@ mod tests {
     #[test]
     fn test_deserialize_schema() {
         let s = include_str!("../../../schema.json");
-        let schema : vdrtools::Schema = serde_json::from_str(s).unwrap();
+        let schema: vdrtools::Schema = serde_json::from_str(s).unwrap();
         println!("{:?}", schema);
-
     }
 }
