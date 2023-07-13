@@ -11,6 +11,7 @@ pub struct Messages {
 }
 #[derive(Clone, Debug, Default)]
 pub struct TypeMessage {
+    pub kid: String,
     pub ty: String,
     pub content: String,
 }

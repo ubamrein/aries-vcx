@@ -1,5 +1,6 @@
 interface ProfileHolder {
-
+    [Throws=VcxUniFFIError]
+    TypeMessage unpack_msg(string msg);
 };
 
 dictionary WalletConfig {
@@ -41,6 +42,7 @@ dictionary Messages {
     sequence<string> messages;
 };
 dictionary TypeMessage {
+    string kid;
     string ty;
     string content;
 };
@@ -60,6 +62,9 @@ interface Connection {
 
     [Throws=VcxUniFFIError]
     PairwiseInfo pairwise_info();
+
+    [Throws=VcxUniFFIError]
+    string key_id(ProfileHolder profile);
 
     [Throws=VcxUniFFIError]
     void accept_invitation(ProfileHolder profile, string invitation);
@@ -95,7 +100,7 @@ interface Issuance {
     [Throws=VcxUniFFIError]
     CredentialEntry get_credential();
     [Throws=VcxUniFFIError]
-    SocialId get_indy_cred(string cred);
+    string get_indy_cred(string cred);
 };
 
 [Error]

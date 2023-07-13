@@ -15,10 +15,13 @@ use aries_vcx::aries_vcx_core::wallet::indy_wallet::IndySdkWallet;
 use aries_vcx::aries_vcx_core::WalletHandle;
 // use aries_vcx::aries_vcx_core::PoolHandle;
 use aries_vcx::core::profile::profile::Profile;
-use aries_vcx::errors::error::{AriesVcxErrorKind, VcxResult};
+use aries_vcx::errors::error::VcxResult;
 use async_trait::async_trait;
 
+use serde_json::Value;
+
 use crate::errors::error::VcxUniFFIError;
+use crate::handlers::TypeMessage;
 use crate::{errors::error::VcxUniFFIResult, runtime::block_on};
 use aries_vcx::transport::Transport;
 
@@ -30,7 +33,47 @@ pub struct ProfileHolder {
     wallet_handle: WalletHandle,
 }
 
-impl ProfileHolder {}
+impl ProfileHolder {
+    pub fn unpack_msg(&self, msg: String) -> VcxUniFFIResult<TypeMessage> {
+        let w = self.inner.inject_wallet();
+        let decrypted_package = block_on(w.unpack_message(msg.as_bytes()))?;
+        let decrypted_package =
+            std::str::from_utf8(&decrypted_package).map_err(|e| VcxUniFFIError::SerializationError {
+                error_msg: format!("Wrong encoding {e}"),
+            })?;
+        let decrypted_package: Value = serde_json::from_str(decrypted_package)?;
+        let msg = decrypted_package
+            .get("message")
+            .ok_or_else(|| VcxUniFFIError::SerializationError {
+                error_msg: "Message not found".to_string(),
+            })?
+            .as_str()
+            .ok_or_else(|| VcxUniFFIError::SerializationError {
+                error_msg: "Message not a string".to_string(),
+            })?;
+        let kid = decrypted_package
+            .get("recipient_verkey")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string();
+        let mut deserialized_value = serde_json::from_str::<Value>(msg)?;
+
+        let ty = deserialized_value
+            .get("@type")
+            .unwrap_or(&Value::Null)
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        if let Some(t) = deserialized_value.get_mut("~thread") {
+            if t.get("thid").is_none() {
+                *t = Value::Null;
+            }
+        }
+        let content = serde_json::to_string(&deserialized_value).unwrap();
+        Ok(TypeMessage { kid, ty, content })
+    }
+}
 impl Drop for ProfileHolder {
     fn drop(&mut self) {
         println!("Finalizing ProfileHolder");
@@ -100,33 +143,54 @@ struct DummyLedgerRead(String);
 impl AnoncredsLedgerRead for DummyLedgerRead {
     async fn get_schema(&self, schema_id: &str, _submitter_did: Option<&str>) -> VcxCoreResult<String> {
         println!("{schema_id}");
-        let res = ureq::get(&format!("{}/schema/{schema_id}", self.0))
-            .call()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
-            .into_string()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
+        let res = serde_json::to_string(
+            ureq::get(&format!("{}/schemas/{schema_id}", self.0))
+                .call()
+                .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+                .into_json::<serde_json::Value>()
+                .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+                .get("schema")
+                .ok_or_else(|| {
+                    AriesVcxCoreError::from_msg(
+                        AriesVcxCoreErrorKind::InvalidUrl,
+                        "no cred def in response".to_string(),
+                    )
+                })?,
+        )?;
         println!("{res}");
         VcxCoreResult::Ok(res)
     }
     async fn get_cred_def(&self, cred_def_id: &str, _submitter_did: Option<&str>) -> VcxCoreResult<String> {
         println!("{cred_def_id}");
-        let res = ureq::get(&format!("{}/cred/{cred_def_id}", self.0))
-            .call()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
-            .into_string()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
+        let res = serde_json::to_string(
+            &ureq::get(&format!("{}/credential-definitions/{cred_def_id}", self.0))
+                .call()
+                .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+                .into_json::<serde_json::Value>()
+                .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+                .get("credential_definition")
+                .ok_or_else(|| {
+                    AriesVcxCoreError::from_msg(
+                        AriesVcxCoreErrorKind::InvalidUrl,
+                        "no cred def in response".to_string(),
+                    )
+                })?,
+        )
+        .unwrap();
         println!("{res}");
         VcxCoreResult::Ok(res)
     }
     async fn get_rev_reg_def_json(&self, rev_reg_id: &str) -> VcxCoreResult<String> {
-        println!("{rev_reg_id}");
-        let res = ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0))
-            .call()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
-            .into_string()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
-        println!("{res}");
-        VcxCoreResult::Ok(res)
+        // println!("{rev_reg_id}");
+        // let res = ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0))
+        //     .call()
+        //     .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+        //     .into_string()
+        //     .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
+        // println!("{res}");
+        let m = include_str!("../../revregdef.json").to_string();
+
+        VcxCoreResult::Ok(m)
     }
     async fn get_rev_reg_delta_json(
         &self,

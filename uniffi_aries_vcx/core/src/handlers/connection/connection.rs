@@ -1,3 +1,4 @@
+use base64::Engine;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 
@@ -49,6 +50,21 @@ impl Connection {
     pub fn unpack_msg(&self, profile: Arc<ProfileHolder>, msg: String) -> VcxUniFFIResult<TypeMessage> {
         let _guard = self.handler.lock()?;
         let w = profile.inner.inject_wallet();
+
+        let enc_msg: Value = serde_json::from_str(&msg)?;
+        let Some(protected) = enc_msg.get("protected").map(|a| a.as_str()).flatten() else {
+            return Err(VcxUniFFIError::SerializationError {
+                error_msg: "Nothing to unpack".to_string(),
+            });
+        };
+        let protected_string =
+            base64::prelude::BASE64_STANDARD
+                .decode(protected)
+                .map_err(|_| VcxUniFFIError::SerializationError {
+                    error_msg: "Wrong encoding".to_string(),
+                })?;
+        // let protected_obj: Value = serde_json::from_slice(&protected_string)?;
+
         let decrypted_package = block_on(w.unpack_message(msg.as_bytes()))?;
         let decrypted_package =
             std::str::from_utf8(&decrypted_package).map_err(|_| VcxUniFFIError::SerializationError {
@@ -66,6 +82,11 @@ impl Connection {
                 error_msg: "Message not a string".to_string(),
             })?;
 
+        let id = decrypted_package
+            .get("recipient_verkey")
+            .and_then(|a| a.as_str())
+            .unwrap();
+
         let mut deserialized_value = serde_json::from_str::<Value>(msg)?;
 
         let ty = deserialized_value
@@ -80,7 +101,11 @@ impl Connection {
             }
         }
         let content = serde_json::to_string(&deserialized_value).unwrap();
-        Ok(TypeMessage { ty, content })
+        Ok(TypeMessage {
+            kid: id.to_string(),
+            ty,
+            content,
+        })
     }
     pub fn get_state(&self) -> VcxUniFFIResult<ConnectionState> {
         let handler = self.handler.lock()?;
@@ -90,6 +115,11 @@ impl Connection {
     pub fn pairwise_info(&self) -> VcxUniFFIResult<PairwiseInfo> {
         let handler = self.handler.lock()?;
         Ok(handler.pairwise_info().clone())
+    }
+    pub fn key_id(&self, profile: Arc<ProfileHolder>) -> VcxUniFFIResult<String> {
+        let handler = self.handler.lock()?;
+
+        Ok(handler.pairwise_info().pw_vk.to_string())
     }
     pub fn create_invitation(&self, service_endpoint: String) -> VcxUniFFIResult<String> {
         let mut handler = self.handler.lock()?;
@@ -141,7 +171,7 @@ impl Connection {
         let url = Url::parse(&service_endpoint)
             .map_err(|err| AriesVcxError::from_msg(AriesVcxErrorKind::InvalidUrl, err.to_string()))?;
         let native_client = profile.transport.clone();
-        block_on(async {
+        *handler = block_on(async {
             let new_conn = connection
                 .handle_request(
                     &profile.inner.inject_wallet(),
@@ -151,11 +181,9 @@ impl Connection {
                     &native_client,
                 )
                 .await?;
-
-            *handler = VcxGenericConnection::from(new_conn);
-
-            Ok(())
-        })
+            Ok::<_, VcxUniFFIError>(VcxGenericConnection::from(new_conn))
+        })?;
+        Ok(())
     }
 
     // NOTE : using string here out of laziness. We could have type this,
@@ -293,7 +321,7 @@ mod tests {
     static INVITEE_URL_INBOUND: &str = "https://did-relay.ubique.ch/msg/fancy-pancy-invitee";
     static INVITEE_URL_MAILBOX: &str = "https://did-relay.ubique.ch/get_msg/fancy-pancy-invitee";
 
-    static LEDGER_BASE_URL: &str = "https://did-relay.ubique.ch";
+    static LEDGER_BASE_URL: &str = "https://tg4u-ws-dev.ubique.ch/v1";
 
     fn establish_connection() -> (
         (Arc<ProfileHolder>, Arc<Connection>),
@@ -330,14 +358,17 @@ mod tests {
         invitee
             .send_request(invitee_profile.clone(), INVITEE_URL_INBOUND.to_string(), vec![])
             .unwrap();
-        // std::thread::sleep(Duration::from_secs(3));
+        println!("---> Invitee-VK: {}", invitee.pairwise_info().unwrap().pw_vk);
+
         let msg = ureq::get(INVITER_URL_MAILBOX).call().unwrap().into_string().unwrap();
         let mut msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
         assert_eq!(msgs.len(), 1);
+        // println!("{}", serde_json::to_string(&msgs).unwrap());
         let connection_request = msgs.pop().unwrap();
+        // println!("{}", serde_json::to_string(&msgs).unwrap());
         let connection_request = serde_json::to_string(&connection_request).unwrap();
         let connection_request = inviter.unpack_msg(profile.clone(), connection_request).unwrap();
-        println!("{}", connection_request.content);
+        // println!("{}", connection_request.content);
         inviter
             .handle_request(
                 profile.clone(),
@@ -347,16 +378,23 @@ mod tests {
             )
             .unwrap();
         inviter.send_response(profile.clone()).unwrap();
+        println!("---> Inviter-VK: {}", inviter.pairwise_info().unwrap().pw_vk);
 
         // std::thread::sleep(Duration::from_secs(3));
         let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
         let mut msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
         assert_eq!(msgs.len(), 1);
         let connection_response = msgs.pop().unwrap();
+
         let connection_response = serde_json::to_string(&connection_response).unwrap();
         let connection_response = invitee
             .unpack_msg(invitee_profile.clone(), connection_response)
             .unwrap();
+
+        println!("--> Msg-kid: {}", connection_response.kid);
+        println!("--> Msg-Type: {}", connection_response.ty);
+        println!("--> Msg-Content: {}", connection_response.content);
+        assert_eq!(connection_response.kid, invitee.pairwise_info().unwrap().pw_vk);
         invitee
             .handle_response(invitee_profile.clone(), connection_response.content)
             .unwrap();
@@ -460,18 +498,25 @@ mod tests {
     "restrictions": [
         {
             "cred_def_id": "2xS9NY4w46MUCXEtAWT7Gf:3:CL:47:social-id"
+        },
+        {
+            "cred_def_id": "BqG7nxsaCGrbjsTJ8tcmEf:3:CL:166:1.0"
         }
     ]
 }"#;
     #[test]
     fn test_proof_api() {
         {
+            let _ = env_logger::builder()
+                .filter_level(log::LevelFilter::Info)
+                .is_test(true)
+                .try_init();
             let _ = ureq::get(INVITEE_URL_MAILBOX).call();
             let _ = ureq::get(INVITER_URL_MAILBOX).call();
 
             // use adnovum api to get creds
             let adnovum_invitee = establish_connection_with_invite(
-                r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "01252965-5132-423b-b05e-93932b462f5b", "label": "SSI Self-Service Portal", "recipientKeys": ["83iHA3Pku6Rgq7o16BGyqv4sjg3MuQ4mu4CwMJZD7ze3"], "serviceEndpoint": "https://ssi-start.adnovum.com/didcomm"}"#,
+                r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "ef4a9762-ebcf-45d4-8eec-3ec6918f628e", "recipientKeys": ["H7oUK7AvaQu3Fz8ojd2o5sEDLWd5FgBJYtC9gBDEZivr"], "serviceEndpoint": "https://ssi-start.adnovum.com/didcomm", "label": "SSI Self-Service Portal"}"#,
             );
             println!("Connection established, try getting credentials");
             let receiver = create_vc_receiver("test".to_string(), adnovum_invitee.1.clone()).unwrap();
@@ -538,7 +583,6 @@ mod tests {
             drop(receiver);
             drop(adnovum_invitee);
         }
-
         // establish_connection between two parties
         let (inviter, invitee) = establish_connection();
         // start proof

@@ -7,18 +7,15 @@
 use std::sync::{Arc, Mutex};
 
 use aries_vcx::{
-    errors::error::VcxResult,
-    handlers::{issuance::holder::Holder, proof_presentation::types::RetrievedCredentials},
+    handlers::issuance::holder::Holder,
     messages::{
-        decorators::attachment::{AttachmentData, AttachmentType},
+        decorators::attachment::AttachmentType,
         msg_fields::protocols::cred_issuance::{issue_credential::IssueCredential, offer_credential::OfferCredential},
         AriesMessage,
     },
-    protocols::issuance::holder::state_machine::HolderSM,
 };
 use base64::Engine;
 use serde_json::Value;
-use uniffi::deps::anyhow::bail;
 use ureq::serde::Deserialize;
 
 use crate::{
@@ -86,7 +83,7 @@ impl Issuance {
             credential,
         })
     }
-    pub fn get_indy_cred(&self, cred: String) -> VcxUniFFIResult<SocialId> {
+    pub fn get_indy_cred(&self, cred: String) -> VcxUniFFIResult<String> {
         let cred: IssueCredential = serde_json::from_str(&cred)?;
         let attachment = &cred.content.credentials_attach[0];
         let AttachmentType::Base64(text) = &attachment.data.content else {
@@ -94,17 +91,27 @@ impl Issuance {
         };
         let decoded = base64::prelude::BASE64_STANDARD.decode(text).unwrap();
         let base64decoded = std::str::from_utf8(&decoded).unwrap();
-        let val: Value = serde_json::from_str(&base64decoded)?;
+        let val: Value = serde_json::from_str(base64decoded)?;
         let val = val.get("values").unwrap();
-        let social_id: Cred = serde_json::from_value(val.to_owned())?;
-        Ok(social_id.into())
+        let Value::Object(map) = val else {
+            return Err(VcxUniFFIError::InternalError { error_msg: "upsi".to_string() });
+        };
+        let mut new_object: serde_json::Map<String, Value> = serde_json::Map::new();
+        for (key, val) in map {
+            let cred_entry: CredEntry = serde_json::from_value(val.to_owned())?;
+            new_object.insert(key.to_owned(), Value::String(cred_entry.raw));
+        }
+        let object: Value = Value::Object(new_object);
+        Ok(object.to_string())
     }
 }
 
 pub fn get_indy_credential(profile: Arc<ProfileHolder>, cred_id: String) -> VcxUniFFIResult<String> {
     let creds = block_on(async move { profile.inner.inject_anoncreds().prover_get_credential(&cred_id).await })?;
     println!("{creds}");
-    Ok(creds)
+    let val: Value = serde_json::from_str(&creds)?;
+    let object = val.get("attrs").unwrap();
+    Ok(object.to_string())
 }
 
 #[cfg(test)]
