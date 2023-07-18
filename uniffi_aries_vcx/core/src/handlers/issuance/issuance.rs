@@ -47,6 +47,22 @@ impl Issuance {
         *guard = holder;
         Ok(())
     }
+    pub fn get_preview(&self) -> VcxUniFFIResult<String> {
+        let guard = self.handler.lock()?;
+        Ok(guard.get_attributes()?)
+    }
+    pub fn decline_offer(&self, profile: Arc<ProfileHolder>) -> VcxUniFFIResult<()> {
+        let mut guard = self.handler.lock()?;
+        let connection = self.connection.clone();
+        let mut holder = guard.clone();
+        // connection.send_message
+        block_on(async {
+            let send_message = connection.send_message(profile.clone());
+            holder.decline_offer(None, send_message).await?;
+            *guard = holder;
+            Ok(())
+        })
+    }
     pub fn send_request(&self, profile: Arc<ProfileHolder>) -> VcxUniFFIResult<()> {
         let mut guard = self.handler.lock()?;
         let pw = self.connection.pairwise_info()?;

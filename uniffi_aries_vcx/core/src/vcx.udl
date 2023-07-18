@@ -94,6 +94,8 @@ interface Issuance {
     [Throws=VcxUniFFIError]
     void receive_offer(string offer);
     [Throws=VcxUniFFIError]
+    void decline_offer(ProfileHolder profile);
+    [Throws=VcxUniFFIError]
     void send_request(ProfileHolder profile);
     [Throws=VcxUniFFIError]
     void process_credential(ProfileHolder profile, string credential);
@@ -101,6 +103,8 @@ interface Issuance {
     CredentialEntry get_credential();
     [Throws=VcxUniFFIError]
     string get_indy_cred(string cred);
+    [Throws=VcxUniFFIError]
+    string get_preview();
 };
 
 [Error]
