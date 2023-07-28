@@ -34,6 +34,11 @@ pub struct ProfileHolder {
 }
 
 impl ProfileHolder {
+    pub fn get_credentials(&self) -> VcxUniFFIResult<String> {
+        let w = self.inner.inject_anoncreds();
+        let list = block_on(async { w.prover_get_credentials(None).await })?;
+        Ok(list)
+    }
     pub fn unpack_msg(&self, msg: String) -> VcxUniFFIResult<TypeMessage> {
         let w = self.inner.inject_wallet();
         let decrypted_package = block_on(w.unpack_message(msg.as_bytes()))?;

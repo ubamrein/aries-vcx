@@ -1,6 +1,8 @@
 interface ProfileHolder {
     [Throws=VcxUniFFIError]
     TypeMessage unpack_msg(string msg);
+    [Throws=VcxUniFFIError]
+    string get_credentials();
 };
 
 dictionary WalletConfig {
