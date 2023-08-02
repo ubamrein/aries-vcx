@@ -100,6 +100,42 @@ pub fn credential_def_identifiers(
     let mut rtn = Vec::new();
 
     for (referent, selected_cred) in credentials.credential_for_referent.iter() {
+        if !selected_cred.credential.cred_info.revealed.unwrap_or(true) {
+            continue;
+        }
+        let cred_info = &selected_cred.credential.cred_info;
+        rtn.push(CredInfoProver {
+            referent: referent.clone(),
+            credential_referent: cred_info.referent.clone(),
+            schema_id: cred_info.schema_id.clone(),
+            cred_def_id: cred_info.cred_def_id.clone(),
+            revocation_interval: _get_revocation_interval(&referent, proof_req)?,
+            timestamp: None,
+            rev_reg_id: cred_info.rev_reg_id.clone(),
+            cred_rev_id: cred_info.cred_rev_id.clone(),
+            tails_file: selected_cred.tails_dir.clone(),
+            revealed: cred_info.revealed,
+        });
+    }
+
+    Ok(rtn)
+}
+
+pub fn unrevealed_identifiers(
+    credentials: &SelectedCredentials,
+    proof_req: &ProofRequestData,
+) -> VcxResult<Vec<CredInfoProver>> {
+    trace!(
+        "unrevealed_attrs >>> credentials: {:?}, proof_req: {:?}",
+        credentials,
+        proof_req
+    );
+    let mut rtn = Vec::new();
+
+    for (referent, selected_cred) in credentials.credential_for_referent.iter() {
+        if selected_cred.credential.cred_info.revealed.unwrap_or(true) {
+            continue;
+        }
         let cred_info = &selected_cred.credential.cred_info;
         rtn.push(CredInfoProver {
             referent: referent.clone(),
@@ -201,6 +237,7 @@ pub async fn build_rev_states_json(
 
 pub fn build_requested_credentials_json(
     credentials_identifiers: &Vec<CredInfoProver>,
+    unrevealed_identifiers: &Vec<CredInfoProver>,
     self_attested_attrs: &HashMap<String, String>,
     proof_req: &ProofRequestData,
 ) -> VcxResult<String> {
@@ -213,7 +250,8 @@ pub fn build_requested_credentials_json(
     let mut rtn: Value = json!({
           "self_attested_attributes":{},
           "requested_attributes":{},
-          "requested_predicates":{}
+          "requested_predicates":{},
+          "unrevealed_attrs" : {}
     });
     // do same for predicates and self_attested
     if let Value::Object(ref mut map) = rtn["requested_attributes"] {
@@ -229,6 +267,17 @@ pub fn build_requested_credentials_json(
         for cred_info in credentials_identifiers {
             if proof_req.requested_predicates.get(&cred_info.referent).is_some() {
                 let insert_val = json!({"cred_id": cred_info.credential_referent, "timestamp": cred_info.timestamp});
+                map.insert(cred_info.referent.to_owned(), insert_val);
+            }
+        }
+    }
+
+    if let Value::Object(ref mut map) = rtn["unrevealed_attrs"] {
+        for cred_info in unrevealed_identifiers {
+            if proof_req.requested_attributes.get(&cred_info.referent).is_some() {
+                let insert_val = json!({
+                        "sub_proof_index" : 0
+                    });
                 map.insert(cred_info.referent.to_owned(), insert_val);
             }
         }

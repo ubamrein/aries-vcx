@@ -173,6 +173,7 @@ impl ProverService {
         let mut requested_proof = {
             let mut rp = RequestedProof::default();
             rp.self_attested_attrs = requested_credentials.self_attested_attributes.clone();
+            rp.unrevealed_attrs = requested_credentials.unrevealed_attrs.clone();
             rp
         };
 
@@ -251,7 +252,6 @@ impl ProverService {
 
             let sub_proof_request =
                 Self::_build_sub_proof_request(&req_attrs_for_cred, &req_predicates_for_cred)?;
-
             proof_builder.add_sub_proof_request(
                 &sub_proof_request,
                 &credential_schema,

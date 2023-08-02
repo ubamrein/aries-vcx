@@ -2,10 +2,13 @@ use std::collections::HashMap;
 
 use indy_api_types::validation::Validatable;
 
+use super::proof::SubProofReferent;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RequestedCredentials {
     pub self_attested_attributes: HashMap<String, String>,
     pub requested_attributes: HashMap<String, RequestedAttribute>,
+    pub unrevealed_attrs: HashMap<String, SubProofReferent>,
     pub requested_predicates: HashMap<String, ProvingCredentialKey>,
 }
 

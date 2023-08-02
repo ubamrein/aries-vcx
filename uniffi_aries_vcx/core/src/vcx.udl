@@ -3,6 +3,8 @@ interface ProfileHolder {
     TypeMessage unpack_msg(string msg);
     [Throws=VcxUniFFIError]
     string get_credentials();
+    [Throws=VcxUniFFIError]
+    void delete_credential(string id);
 };
 
 dictionary WalletConfig {
@@ -88,6 +90,9 @@ interface Connection {
 
     [Throws=VcxUniFFIError]
     string create_invitation(string service_endpoint);
+
+    [Throws=VcxUniFFIError]
+    string get_their_did_doc();
 };
 
 
@@ -165,6 +170,8 @@ interface Proof {
     string choose_credentials(string select_credentials);
     [Throws=VcxUniFFIError]
     void send_presentation(ProfileHolder profile, Connection connection, string select_credentials);
+     [Throws=VcxUniFFIError]
+    string get_proof_attachment();
 
 };
 

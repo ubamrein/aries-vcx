@@ -152,6 +152,13 @@ impl Connection {
             Ok(())
         })
     }
+    pub fn get_their_did_doc(&self) -> VcxUniFFIResult<String> {
+        let handler = self.handler.lock()?;
+        let doc = handler.their_did_doc().ok_or_else(|| VcxUniFFIError::InternalError {
+            error_msg: "no did doc".to_string(),
+        })?;
+        Ok(serde_json::to_string(doc).unwrap())
+    }
 
     // NOTE : using string here out of laziness. We could have type this,
     // but UniFFI does not support structs with unnamed fields. So we'd have to
@@ -287,7 +294,7 @@ impl Connection {
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
+    use std::{sync::Arc, thread, time::Duration};
 
     use aries_vcx::{
         aries_vcx_core::indy::wallet::WalletConfigBuilder,
@@ -504,6 +511,122 @@ mod tests {
         }
     ]
 }"#;
+
+    #[test]
+    fn test_remote_verifier() {
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Info)
+            .is_test(true)
+            .try_init();
+        let _ = ureq::get(INVITEE_URL_MAILBOX).call();
+        let _ = ureq::get(INVITER_URL_MAILBOX).call();
+
+        {
+            // use adnovum api to get creds
+            let adnovum_invitee = establish_connection_with_invite(
+                r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "16af8efb-9919-4a9d-a290-53aa1f679ac2", "recipientKeys": ["BXUBBQkYqvicBYugGQqto8tPZFRAHMZUjCmMPZoHaDun"], "serviceEndpoint": "https://ssi-start.adnovum.com/didcomm", "label": "SSI Self-Service Portal"}"#,
+            );
+            println!("Connection established, try getting credentials");
+            let receiver = create_vc_receiver("test".to_string(), adnovum_invitee.1.clone()).unwrap();
+            let mut got_offer = false;
+
+            for m in &adnovum_invitee.2 {
+                if m.ty.contains("offer-credential") {
+                    receiver.receive_offer(m.content.to_string()).unwrap();
+                    receiver.send_request(adnovum_invitee.0.clone()).unwrap();
+                    got_offer = true;
+                    println!("go offer");
+                    break;
+                }
+            }
+
+            while !got_offer {
+                let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+                let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+                for m in msgs {
+                    let m = adnovum_invitee
+                        .1
+                        .unpack_msg(adnovum_invitee.0.clone(), m.to_string())
+                        .unwrap();
+                    println!("{}", m.ty);
+                    if m.ty.contains("offer-credential") {
+                        receiver.receive_offer(m.content).unwrap();
+                        receiver.send_request(adnovum_invitee.0.clone()).unwrap();
+                        got_offer = true;
+                        println!("go offer");
+                        break;
+                    }
+                }
+            }
+            println!("Credential request sent waiting for response");
+            let mut got_creds = false;
+            while !got_creds {
+                let msg = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_string().unwrap();
+                let msgs: Vec<Value> = serde_json::from_str(&msg).unwrap();
+
+                for m in msgs {
+                    let m = adnovum_invitee
+                        .1
+                        .unpack_msg(adnovum_invitee.0.clone(), m.to_string())
+                        .unwrap();
+                    println!("{}", m.ty);
+                    if m.ty.contains("1.0/issue-credential") {
+                        receiver
+                            .process_credential(adnovum_invitee.0.clone(), m.content)
+                            .unwrap();
+
+                        got_creds = true;
+                        let entry = receiver.get_credential().unwrap();
+                        println!("{}", entry.credential_id);
+                        println!("{}", entry.credential);
+                        println!(
+                            "-----!!!>{}",
+                            get_indy_credential(adnovum_invitee.0.clone(), entry.credential_id.clone()).unwrap()
+                        );
+                        break;
+                    }
+                }
+            }
+            println!("we received the credentials");
+            drop(receiver);
+            drop(adnovum_invitee);
+        }
+        let remote_verifier = establish_connection_with_invite(
+            r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "c5e09173-dfc9-49ed-a638-9ffbf6af3411", "label": "Aries Cloud Agent", "recipientKeys": ["FWVE2pNXwVgr1J6cwBhvue9jnk7jLH1uZxJXoAnGpxE7"], "serviceEndpoint": "https://tg4u-acapy-issuer-dev.ubique.ch"}"#,
+        );
+
+        let _ = ureq::get(INVITEE_URL_MAILBOX).call();
+        thread::sleep(Duration::from_secs(5));
+        println!("Connection established getting ready for proof");
+        thread::sleep(Duration::from_secs(5));
+
+        let mut msgs: Vec<Value> = ureq::get(INVITEE_URL_MAILBOX).call().unwrap().into_json().unwrap();
+        assert_eq!(msgs.len(), 1);
+        let msg = msgs.pop().unwrap();
+
+        let msg = remote_verifier
+            .1
+            .unpack_msg(remote_verifier.0.clone(), msg.to_string())
+            .unwrap();
+        println!("{}", msg.content);
+        let proofer = Proof::create_from_request("test".to_string(), msg.content).unwrap();
+        let creds: RetrievedCredentials =
+            serde_json::from_str(&proofer.select_credentials(remote_verifier.0.clone()).unwrap()).unwrap();
+        println!("{:?}", creds.credentials_by_referent);
+        let first = &(&creds.credentials_by_referent["attribute_0"])[0];
+
+        let mut sc = SelectedCredentials::default();
+        sc.select_credential_for_referent_from_retrieved("attribute_0".to_string(), first.to_owned(), None);
+        println!("try sending proof");
+        proofer
+            .send_presentation(
+                remote_verifier.0.clone(),
+                remote_verifier.1.clone(),
+                serde_json::to_string(&sc).unwrap(),
+            )
+            .unwrap();
+    }
+
     #[test]
     fn test_proof_api() {
         {
@@ -516,7 +639,7 @@ mod tests {
 
             // use adnovum api to get creds
             let adnovum_invitee = establish_connection_with_invite(
-                r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "ef4a9762-ebcf-45d4-8eec-3ec6918f628e", "recipientKeys": ["H7oUK7AvaQu3Fz8ojd2o5sEDLWd5FgBJYtC9gBDEZivr"], "serviceEndpoint": "https://ssi-start.adnovum.com/didcomm", "label": "SSI Self-Service Portal"}"#,
+                r#"{"@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation", "@id": "bee831f8-8d20-4dd2-bde3-c3dd572983ac", "recipientKeys": ["6SuigWycBZL8PQZEFxR5o8BQeuVEFsYe9NhqsTja2jb3"], "serviceEndpoint": "https://ssi-start.adnovum.com/didcomm", "label": "SSI Self-Service Portal"}"#,
             );
             println!("Connection established, try getting credentials");
             let receiver = create_vc_receiver("test".to_string(), adnovum_invitee.1.clone()).unwrap();

@@ -39,6 +39,11 @@ impl ProfileHolder {
         let list = block_on(async { w.prover_get_credentials(None).await })?;
         Ok(list)
     }
+    pub fn delete_credential(&self, id: String) -> VcxUniFFIResult<()> {
+        let w = self.inner.inject_anoncreds();
+        block_on(async {w.prover_delete_credential(&id).await})?;
+        Ok(())
+    }
     pub fn unpack_msg(&self, msg: String) -> VcxUniFFIResult<TypeMessage> {
         let w = self.inner.inject_wallet();
         let decrypted_package = block_on(w.unpack_message(msg.as_bytes()))?;

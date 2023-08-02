@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::common::proofs::proof_request::ProofRequestData;
 use crate::common::proofs::prover::prover_internal::{
     build_cred_defs_json_prover, build_requested_credentials_json, build_rev_states_json, build_schemas_json_prover,
-    credential_def_identifiers,
+    credential_def_identifiers, unrevealed_identifiers,
 };
 use crate::core::profile::profile::Profile;
 use crate::errors::error::prelude::*;
@@ -41,10 +41,11 @@ pub async fn generate_indy_proof(
     })?;
 
     let mut credentials_identifiers = credential_def_identifiers(credentials, &proof_request)?;
+    let unrevealed_attrs = unrevealed_identifiers(credentials, &proof_request)?;
 
     let revoc_states_json = build_rev_states_json(profile, &mut credentials_identifiers).await?;
     let requested_credentials =
-        build_requested_credentials_json(&credentials_identifiers, self_attested_attrs, &proof_request)?;
+        build_requested_credentials_json(&credentials_identifiers, &unrevealed_attrs, self_attested_attrs, &proof_request)?;
 
     let schemas_json = build_schemas_json_prover(profile, &credentials_identifiers).await?;
     let credential_defs_json = build_cred_defs_json_prover(profile, &credentials_identifiers).await?;
