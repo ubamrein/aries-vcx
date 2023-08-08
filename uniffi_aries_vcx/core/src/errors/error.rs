@@ -32,3 +32,19 @@ impl From<UnexpectedUniFFICallbackError> for NativeError {
        Self::InternalError
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum CryptoError {
+    #[error("Encryption failed")]
+    EncryptionError,
+    #[error("Decryption failed")]
+    DecryptionError,
+    #[error("Unexpected error")]
+    Unknown
+}
+
+impl From<UnexpectedUniFFICallbackError> for CryptoError {
+    fn from(_value: UnexpectedUniFFICallbackError) -> Self {
+       Self::Unknown
+    }
+}

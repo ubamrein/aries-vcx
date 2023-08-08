@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::error::Error;
 use std::sync::Arc;
 
 use aries_vcx::aries_vcx_core::anoncreds::base_anoncreds::BaseAnonCreds;
@@ -19,13 +20,63 @@ use aries_vcx::errors::error::VcxResult;
 use async_trait::async_trait;
 
 use serde_json::Value;
+use vdrtools::SecureEnclaveProvider;
+use vdrtools::types::IndyError;
+use vdrtools::types::errors::IndyResult;
 
-use crate::errors::error::VcxUniFFIError;
+use crate::errors::error::{VcxUniFFIError, CryptoError};
 use crate::handlers::TypeMessage;
 use crate::{errors::error::VcxUniFFIResult, runtime::block_on};
 use aries_vcx::transport::Transport;
 
 use super::http_client::NativeClient;
+
+pub trait NativeCryptoProvider : Send + Sync {
+    fn encrypt(&self, data: Vec<u8>, key_handle: String) -> Result<Vec<u8>, CryptoError>;
+    fn decrypt(&self, data: Vec<u8>, key_handle: String) -> Result<Vec<u8>, CryptoError>;
+    fn new_key(&self) -> Result<String, CryptoError>;
+    fn get_handle(&self, ty: String, name: String, etype: Vec<u8>, ename: Vec<u8>) -> Result<String, CryptoError>;
+}
+
+pub struct NativeSecureEnclaveProvider {
+    pub inner: Box<dyn NativeCryptoProvider>
+}
+
+
+
+impl NativeSecureEnclaveProvider {
+    pub fn new(provider: Box<dyn NativeCryptoProvider>) -> Self {
+        Self {
+            inner: provider
+        }
+    }
+}
+
+impl SecureEnclaveProvider for NativeSecureEnclaveProvider {
+    fn encrypt(&self, data: &[u8], key_handle: &str) -> IndyResult<Vec<u8>>{
+        self.inner.encrypt(data.to_vec(), key_handle.to_string()).map_err(|e| {
+            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not encrypt")
+        })
+    }
+
+    fn decrypt(&self, encrypted_data: &[u8], key_handle: &str) -> IndyResult<Vec<u8>> {
+        self.inner.decrypt(encrypted_data.to_vec(), key_handle.to_string()).map_err(|e| {
+            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not decrypt")
+        })
+    }
+
+    fn new_key(&self) -> IndyResult<String> {
+        self.inner.new_key().map_err(|e| {
+            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not create key")
+        })
+    }
+
+    fn get_handle(&self, ty: &str, name: &str, etype: &[u8], ename:&[u8]) -> IndyResult<String> {
+        self.inner.get_handle(ty.into(), name.into(), etype.into(), ename.into()).map_err(|e| {
+            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not get handle")
+        })
+    }
+}
 
 pub struct ProfileHolder {
     pub inner: Arc<dyn Profile>,
@@ -94,11 +145,12 @@ impl Drop for ProfileHolder {
 pub fn new_indy_profile(
     wallet_config: WalletConfig,
     native_client: Arc<NativeClient>,
+    native_secure_enclave_provider: Arc<NativeSecureEnclaveProvider>,
     ledger_base_url: String,
 ) -> VcxUniFFIResult<Arc<ProfileHolder>> {
     block_on(async {
         create_wallet_with_master_secret(&wallet_config).await?;
-        let wh = open_wallet(&wallet_config).await?;
+        let wh = open_wallet(&wallet_config, Some(native_secure_enclave_provider)).await?;
         let inner: Arc<dyn Profile> = Arc::new(DummyProfile(wh, ledger_base_url));
         let transport: Arc<dyn Transport> = native_client;
 

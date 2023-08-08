@@ -1,9 +1,11 @@
-use crate::secret;
+use std::sync::Arc;
+
+use crate::{secret, wallet::indy_wallet};
 use serde::{Deserialize, Serialize};
 use vdrtools::{
     types::domain::wallet::{default_key_derivation_method, KeyDerivationMethod},
     types::errors::IndyErrorKind,
-    Locator,
+    Locator, SecureEnclaveProvider,
 };
 
 use crate::{
@@ -68,7 +70,8 @@ pub struct RestoreWalletConfigs {
     pub wallet_key_derivation: Option<String>,
 }
 
-pub async fn open_wallet(wallet_config: &WalletConfig) -> VcxCoreResult<WalletHandle> {
+pub async fn open_wallet(wallet_config: &WalletConfig, secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>) -> VcxCoreResult<WalletHandle> {
+
     trace!("open_as_main_wallet >>> {}", &wallet_config.wallet_name);
 
     Locator::instance()
@@ -83,6 +86,7 @@ pub async fn open_wallet(wallet_config: &WalletConfig) -> VcxCoreResult<WalletHa
                     .map(serde_json::from_str)
                     .transpose()?,
                 cache: None,
+
             },
             vdrtools::types::domain::wallet::Credentials {
                 key: wallet_config.wallet_key.clone(),
@@ -102,6 +106,7 @@ pub async fn open_wallet(wallet_config: &WalletConfig) -> VcxCoreResult<WalletHa
                     .map(serde_json::from_str)
                     .transpose()?,
             },
+            secure_enclave_provider
         )
         .await
         .map_err(From::from)
@@ -565,7 +570,7 @@ pub async fn create_and_open_wallet(wallet_config: &WalletConfig) -> VcxCoreResu
 
     create_indy_wallet(wallet_config).await?;
 
-    let handle = open_wallet(wallet_config).await?;
+    let handle = open_wallet(wallet_config, None).await?;
 
     Ok(handle)
 }

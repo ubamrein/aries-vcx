@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use indy_api_types::errors::IndyError;
 
+use crate::SecureEnclaveProvider;
+
 use super::{
     encryption::decrypt_storage_record, storage::StorageIterator, wallet::Keys, WalletRecord,
 };
@@ -9,13 +11,15 @@ use super::{
 pub(super) struct WalletIterator {
     storage_iterator: Box<dyn StorageIterator>,
     keys: Arc<Keys>,
+    secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>
 }
 
 impl WalletIterator {
-    pub fn new(storage_iter: Box<dyn StorageIterator>, keys: Arc<Keys>) -> Self {
+    pub fn new(storage_iter: Box<dyn StorageIterator>, keys: Arc<Keys>, secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>> ) -> Self {
         WalletIterator {
             storage_iterator: storage_iter,
             keys,
+            secure_enclave_provider
         }
     }
 
@@ -26,6 +30,7 @@ impl WalletIterator {
             Ok(Some(decrypt_storage_record(
                 &next_storage_entity,
                 &self.keys,
+                self.secure_enclave_provider.clone()
             )?))
         } else {
             Ok(None)

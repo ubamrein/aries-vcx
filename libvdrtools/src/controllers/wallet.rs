@@ -15,6 +15,9 @@ use indy_utils::crypto::{
 use crate::utils::crypto::base58::ToBase58;
 use indy_wallet::{KeyDerivationData, WalletService};
 
+pub use indy_wallet::SecureEnclaveProvider;
+
+
 use crate::services::CryptoService;
 
 pub struct WalletController {
@@ -149,7 +152,12 @@ impl WalletController {
     /// #Errors
     /// Common*
     /// Wallet*
-    pub async fn open(&self, config: Config, credentials: Credentials) -> IndyResult<WalletHandle> {
+    pub async fn open(
+        &self,
+        config: Config,
+        credentials: Credentials,
+        secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>,
+    ) -> IndyResult<WalletHandle> {
         trace!(
             "open > config: {:?} credentials: {:?}",
             &config,
@@ -172,7 +180,12 @@ impl WalletController {
 
         let res = self
             .wallet_service
-            .open_wallet_continue(wallet_handle, (&key, rekey.as_ref()), config.cache)
+            .open_wallet_continue(
+                wallet_handle,
+                (&key, rekey.as_ref()),
+                config.cache,
+                secure_enclave_provider,
+            )
             .await;
 
         trace!("open < res: {:?}", res);

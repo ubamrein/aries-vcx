@@ -48,7 +48,7 @@ pub(crate) fn wql_to_sql<'a>(
     let clause_string = operator_to_sql(op, &mut arguments)?;
 
     const BASE: &str =
-        "SELECT i.id, i.name, i.value, i.key, i.type FROM items as i WHERE i.type = ?";
+        "SELECT i.id, i.name, i.value, i.key, i.type, i.with_biometrics FROM items as i WHERE i.type = ?";
     if !clause_string.is_empty() {
         let mut query_string = String::with_capacity(BASE.len() + 5 + clause_string.len());
         query_string.push_str(BASE);

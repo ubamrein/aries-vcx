@@ -3,7 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use indy_api_types::errors::prelude::*;
 
 use indy_utils::{
-    crypto::{chacha20poly1305_ietf, hmacsha256},
+    crypto::{
+        chacha20poly1305_ietf::{self, Key},
+        hmacsha256,
+    },
     wql::Query,
 };
 
@@ -76,6 +79,7 @@ impl Keys {
 pub struct EncryptedValue {
     pub data: Vec<u8>,
     pub key: Vec<u8>,
+    pub with_biometrics: bool,
 }
 
 #[allow(dead_code)]
@@ -84,8 +88,12 @@ const ENCRYPTED_KEY_LEN: usize = chacha20poly1305_ietf::TAGBYTES
     + chacha20poly1305_ietf::KEYBYTES;
 
 impl EncryptedValue {
-    pub fn new(data: Vec<u8>, key: Vec<u8>) -> Self {
-        Self { data, key }
+    pub fn new(data: Vec<u8>, key: Vec<u8>, with_biometrics: bool) -> Self {
+        Self {
+            data,
+            key,
+            with_biometrics,
+        }
     }
 
     pub fn encrypt(data: &str, key: &chacha20poly1305_ietf::Key) -> Self {
@@ -93,6 +101,7 @@ impl EncryptedValue {
         EncryptedValue::new(
             encrypt_as_not_searchable(data.as_bytes(), &value_key),
             encrypt_as_not_searchable(&value_key[..], key),
+            false,
         )
     }
 
@@ -111,11 +120,44 @@ impl EncryptedValue {
 
         Ok(res)
     }
+    pub fn encrypt_with_biometrics(
+        data: &str,
+        key_handle: &str,
+        secure_enclave: &Arc<dyn SecureEnclaveProvider>,
+    ) -> IndyResult<Self> {
+        let value_key = chacha20poly1305_ietf::gen_key();
+        let key = secure_enclave.encrypt(&value_key[..], key_handle)?;
+        Ok(EncryptedValue::new(
+            encrypt_as_not_searchable(data.as_bytes(), &value_key),
+            key,
+            true,
+        ))
+    }
+    pub fn decrypt_with_biometrics(
+        &self,
+        key_handle: &str,
+        secure_enclave: &Arc<dyn SecureEnclaveProvider>,
+    ) -> IndyResult<String> {
+        let mut value_key_bytes = secure_enclave.decrypt(&self.key, key_handle)?;
+        let value_key = chacha20poly1305_ietf::Key::from_slice(&value_key_bytes)
+            .map_err(|err| err.extend("Invalid value key"))?;
+        value_key_bytes.zeroize();
+        let res = String::from_utf8(decrypt_merged(&self.data, &value_key)?).to_indy(
+            IndyErrorKind::InvalidState,
+            "Invalid UTF8 string inside of value",
+        )?;
+        Ok(res)
+    }
 
     #[allow(dead_code)]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut result = self.key.clone();
         result.extend_from_slice(self.data.as_slice());
+        if self.with_biometrics {
+            result.push(1)
+        } else {
+            result.push(0)
+        }
         result
     }
 
@@ -130,12 +172,21 @@ impl EncryptedValue {
         }
 
         let value_key = joined_data[..ENCRYPTED_KEY_LEN].to_owned();
-        let value = joined_data[ENCRYPTED_KEY_LEN..].to_owned();
+        let value = joined_data[ENCRYPTED_KEY_LEN..joined_data.len() - 2].to_owned();
+        let with_biometrics = joined_data[joined_data.len() - 1] == 1;
         Ok(EncryptedValue {
             data: value,
             key: value_key,
+            with_biometrics,
         })
     }
+}
+
+pub trait SecureEnclaveProvider: Send + Sync {
+    fn encrypt(&self, data: &[u8], keyHandle: &str) -> IndyResult<Vec<u8>>;
+    fn decrypt(&self, encrypted_data: &[u8], keyHandle: &str) -> IndyResult<Vec<u8>>;
+    fn new_key(&self) -> IndyResult<String>;
+    fn get_handle(&self, ty: &str, name: &str, etype: &[u8], ename: &[u8]) -> IndyResult<String>;
 }
 
 pub(super) struct Wallet {
@@ -143,6 +194,7 @@ pub(super) struct Wallet {
     storage: Box<dyn storage::WalletStorage>,
     keys: Arc<Keys>,
     cache: WalletCache,
+    secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>,
 }
 
 impl Wallet {
@@ -151,12 +203,14 @@ impl Wallet {
         storage: Box<dyn storage::WalletStorage>,
         keys: Arc<Keys>,
         cache: WalletCache,
+        secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>,
     ) -> Wallet {
         Wallet {
             id,
             storage,
             keys,
             cache,
+            secure_enclave_provider,
         }
     }
 
@@ -178,8 +232,16 @@ impl Wallet {
             &self.keys.name_key,
             &self.keys.item_hmac_key,
         );
-
-        let evalue = EncryptedValue::encrypt(value, &self.keys.value_key);
+        log::error!("encrypt: {}", self.secure_enclave_provider.is_some());
+        let evalue = if let Some(secure_enclave_provider) = self.secure_enclave_provider.as_ref() {
+            EncryptedValue::encrypt_with_biometrics(
+                value,
+                &secure_enclave_provider.get_handle(type_, name, &etype, &ename)?,
+                secure_enclave_provider,
+            )?
+        } else {
+            EncryptedValue::encrypt(value, &self.keys.value_key)
+        };
 
         let etags = encrypt_tags(
             tags,
@@ -308,7 +370,16 @@ impl Wallet {
             &self.keys.item_hmac_key,
         );
 
-        let encrypted_value = EncryptedValue::encrypt(new_value, &self.keys.value_key);
+        let encrypted_value =
+            if let Some(secure_enclave_provider) = self.secure_enclave_provider.as_ref() {
+                EncryptedValue::encrypt_with_biometrics(
+                    new_value,
+                    &secure_enclave_provider.get_handle(type_, name, &encrypted_type, &encrypted_name)?,
+                    secure_enclave_provider,
+                )?
+            } else {
+                EncryptedValue::encrypt(new_value, &self.keys.value_key)
+            };
 
         self.storage
             .update(&encrypted_type, &encrypted_name, &encrypted_value)
@@ -364,7 +435,7 @@ impl Wallet {
                     StorageRecord {
                         id: full_result.id,
                         type_: if record_options.retrieve_type {
-                            Some(etype)
+                            Some(etype.clone())
                         } else {
                             None
                         },
@@ -390,7 +461,19 @@ impl Wallet {
 
         let value = match result.value {
             None => None,
-            Some(encrypted_value) => Some(encrypted_value.decrypt(&self.keys.value_key)?),
+            Some(encrypted_value) => {
+                if !encrypted_value.with_biometrics {
+                    Some(encrypted_value.decrypt(&self.keys.value_key)?)
+                } else if let Some(secure_enclave_provider) = self.secure_enclave_provider.as_ref()
+                {
+                    Some(encrypted_value.decrypt_with_biometrics(
+                        &secure_enclave_provider.get_handle(type_, name, &etype, &ename)?,
+                        secure_enclave_provider,
+                    )?)
+                } else {
+                    Some(encrypted_value.decrypt(&self.keys.value_key)?)
+                }
+            }
         };
 
         let tags = decrypt_tags(
@@ -450,7 +533,7 @@ impl Wallet {
             .search(&encrypted_type_, &encrypted_query, options)
             .await?;
 
-        let wallet_iterator = WalletIterator::new(storage_iterator, Arc::clone(&self.keys));
+        let wallet_iterator = WalletIterator::new(storage_iterator, Arc::clone(&self.keys), self.secure_enclave_provider.clone());
 
         Ok(wallet_iterator)
     }
@@ -461,7 +544,7 @@ impl Wallet {
 
     pub async fn get_all(&self) -> IndyResult<WalletIterator> {
         let all_items = self.storage.get_all().await?;
-        Ok(WalletIterator::new(all_items, self.keys.clone()))
+        Ok(WalletIterator::new(all_items, self.keys.clone(), self.secure_enclave_provider.clone()))
     }
 
     pub fn get_id<'a>(&'a self) -> &'a str {

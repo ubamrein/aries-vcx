@@ -46,6 +46,7 @@ use crate::{
 
 pub use controllers::CredentialDefinitionId;
 
+pub use indy_wallet::SecureEnclaveProvider;
 pub use domain::{
     anoncreds::{
         credential::{Credential, CredentialValues},

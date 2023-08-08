@@ -126,6 +126,13 @@ enum NativeError {
     "InternalError"
 };
 
+[Error]
+enum CryptoError {
+    "EncryptionError",
+    "DecryptionError",
+    "Unknown"
+};
+
 dictionary CredentialEntry {
     string credential_id;
     string credential;
@@ -133,7 +140,7 @@ dictionary CredentialEntry {
 
 namespace vcx {
     [Throws=VcxUniFFIError]
-    ProfileHolder new_indy_profile(WalletConfig wallet_config, NativeClient client, string ledger_base_url);
+    ProfileHolder new_indy_profile(WalletConfig wallet_config, NativeClient client, NativeSecureEnclaveProvider native_secure_enclave_provider, string ledger_base_url);
 
     [Throws=VcxUniFFIError]
     Connection create_inviter(ProfileHolder profile);
@@ -148,6 +155,21 @@ namespace vcx {
      [Throws=VcxUniFFIError]
      string get_indy_credential(ProfileHolder profile, string cred_id);
 
+};
+
+callback interface NativeCryptoProvider {
+    [Throws=CryptoError]
+    sequence<u8> encrypt([ByRef] sequence<u8> data, [ByRef] string key_handle);
+    [Throws=CryptoError]
+    sequence<u8> decrypt([ByRef] sequence<u8> data, [ByRef] string key_handle);
+    [Throws=CryptoError]
+    string new_key();
+    [Throws=CryptoError]
+    string get_handle(string ty, string name, sequence<u8> etype, sequence<u8> ename);
+};
+
+interface NativeSecureEnclaveProvider {
+    constructor(NativeCryptoProvider cryptoProvider);
 };
 
 

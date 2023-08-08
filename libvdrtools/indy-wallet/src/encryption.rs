@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str};
+use std::{collections::HashMap, str, sync::Arc};
 
 use indy_api_types::{domain::wallet::KeyDerivationMethod, errors::prelude::*};
 use indy_utils::crypto::{chacha20poly1305_ietf, hmacsha256, pwhash_argon2i13};
@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     storage::{StorageRecord, Tag, TagName},
-    Keys, Metadata, WalletRecord,
+    Keys, Metadata, SecureEnclaveProvider, WalletRecord,
 };
 
 #[cfg(test)]
@@ -251,6 +251,7 @@ pub(super) fn decrypt_tags(
 pub(super) fn decrypt_storage_record(
     record: &StorageRecord,
     keys: &Keys,
+    secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>,
 ) -> IndyResult<WalletRecord> {
     let decrypted_name = decrypt_merged(&record.id, &keys.name_key)?;
 
@@ -260,7 +261,18 @@ pub(super) fn decrypt_storage_record(
     )?;
 
     let decrypted_value = match record.value {
-        Some(ref value) => Some(value.decrypt(&keys.value_key)?),
+        Some(ref value) => {
+            if !value.with_biometrics {
+                Some(value.decrypt(&keys.value_key)?)
+            } else if let Some(v) = secure_enclave_provider.as_ref() {
+                Some(value.decrypt_with_biometrics(
+                    &v.get_handle("", "", record.type_.as_deref().unwrap_or(&[]), &record.id)?,
+                    v,
+                )?)
+            } else {
+                Some(value.decrypt(&keys.value_key)?)
+            }
+        }
         None => None,
     };
 

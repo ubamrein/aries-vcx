@@ -22,6 +22,7 @@ use indy_utils::{
 use log::trace;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as SValue;
+pub use wallet::SecureEnclaveProvider;
 use std::sync::Mutex;
 
 pub use crate::encryption::KeyDerivationData;
@@ -250,6 +251,7 @@ impl WalletService {
         wallet_handle: WalletHandle,
         master_key: (&MasterKey, Option<&MasterKey>),
         cache_config: Option<CacheConfig>,
+        secure_enclave_provider: Option<Arc<dyn SecureEnclaveProvider>>
     ) -> IndyResult<WalletHandle> {
         let (id, storage, metadata, rekey_data) = self
             .pending_for_open
@@ -272,6 +274,7 @@ impl WalletService {
             storage,
             Arc::new(keys),
             WalletCache::new(cache_config),
+            secure_enclave_provider
         );
 
         self.wallets
@@ -810,6 +813,7 @@ impl WalletService {
                 storage,
                 Arc::new(keys),
                 WalletCache::new(None),
+                None
             );
 
             finish_import(&wallet, reader, import_key, nonce, chunk_size, header_bytes).await

@@ -126,15 +126,15 @@ impl WalletStorage for SQLiteStorage {
 
         let mut conn = self.pool.acquire().await?;
 
-        let (item_id, value, key): (i64, Vec<u8>, Vec<u8>) =
-            sqlx::query_as("SELECT id, value, key FROM items where type = ?1 AND name = ?2")
+        let (item_id, value, key, with_biometrics): (i64, Vec<u8>, Vec<u8>, bool) =
+            sqlx::query_as("SELECT id, value, key, with_biometrics FROM items where type = ?1 AND name = ?2")
                 .bind(type_)
                 .bind(id)
                 .fetch_one(&mut conn)
                 .await?;
 
         let value = if options.retrieve_value {
-            Some(EncryptedValue::new(value, key))
+            Some(EncryptedValue::new(value, key, with_biometrics))
         } else {
             None
         };
@@ -216,11 +216,12 @@ impl WalletStorage for SQLiteStorage {
     ) -> IndyResult<()> {
         let mut tx = self.pool.begin().await?;
 
-        let id = sqlx::query("INSERT INTO items (type, name, value, key) VALUES (?1, ?2, ?3, ?4)")
+        let id = sqlx::query("INSERT INTO items (type, name, value, key, with_biometrics) VALUES (?1, ?2, ?3, ?4, ?5)")
             .bind(type_)
             .bind(id)
             .bind(&value.data)
             .bind(&value.key)
+            .bind(&value.with_biometrics)
             .execute(&mut tx)
             .await?
             .last_insert_rowid();
@@ -258,11 +259,12 @@ impl WalletStorage for SQLiteStorage {
         let mut tx = self.pool.begin().await?;
 
         let row_updated =
-            sqlx::query("UPDATE items SET value = ?1, key = ?2 WHERE type = ?3 AND name = ?4")
+            sqlx::query("UPDATE items SET value = ?1, key = ?2, with_biometrics = ?3 WHERE type = ?4 AND name = ?5")
                 .bind(&value.data)
                 .bind(&value.key)
-                .bind(&type_)
-                .bind(&id)
+                .bind(value.with_biometrics)
+                .bind(type_)
+                .bind(id)
                 .execute(&mut tx)
                 .await?
                 .rows_affected();
@@ -509,8 +511,8 @@ impl WalletStorage for SQLiteStorage {
             mtags.entry(k).or_insert_with(Vec::new).push(v)
         }
 
-        let records: VecDeque<_> = sqlx::query_as::<_, (i64, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)>(
-            "SELECT id, name, value, key, type FROM items",
+        let records: VecDeque<_> = sqlx::query_as::<_, (i64, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, bool)>(
+            "SELECT id, name, value, key, type, with_biometrics FROM items",
         )
         .fetch_all(&mut conn)
         .await?
@@ -518,7 +520,7 @@ impl WalletStorage for SQLiteStorage {
         .map(|r| {
             StorageRecord::new(
                 r.1,
-                Some(EncryptedValue::new(r.2, r.3)),
+                Some(EncryptedValue::new(r.2, r.3, r.5)),
                 Some(r.4),
                 mtags.remove(&r.0).or_else(|| Some(Vec::new())),
             )
@@ -556,7 +558,7 @@ impl WalletStorage for SQLiteStorage {
             // "SELECT i.id, i.name, i.value, i.key, i.type FROM items as i WHERE i.type = ?"
 
             let mut query =
-                sqlx::query_as::<sqlx::Sqlite, (i64, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>)>(&query);
+                sqlx::query_as::<sqlx::Sqlite, (i64, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, bool)>(&query);
 
             for arg in args.iter() {
                 query = match arg {
@@ -638,7 +640,7 @@ impl WalletStorage for SQLiteStorage {
                     StorageRecord::new(
                         r.1,
                         if options.retrieve_value {
-                            Some(EncryptedValue::new(r.2, r.3))
+                            Some(EncryptedValue::new(r.2, r.3, r.5))
                         } else {
                             None
                         },
@@ -821,6 +823,7 @@ impl WalletStorageType for SQLiteStorageType {
                 name NOT NULL,
                 value NOT NULL,
                 key NOT NULL,
+                with_biometrics NOT NULL,
                 PRIMARY KEY(id)
             );
 
