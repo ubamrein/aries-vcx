@@ -51,6 +51,15 @@ impl Issuance {
         let guard = self.handler.lock()?;
         Ok(guard.get_attributes()?)
     }
+    pub fn get_cred_def_id(&self) -> VcxUniFFIResult<String> {
+        let guard = self.handler.lock()?;
+        let attachment: serde_json::Value = serde_json::from_str(&guard.get_attachment()?)?;
+        log::info!("{attachment}");
+        let Some(cred_def_id) = attachment.get("cred_def_id").and_then(|a| a.as_str()) else {
+            return Err(VcxUniFFIError::InternalError { error_msg: "wrong offer".to_string() });
+        };
+        Ok(cred_def_id.to_string())
+    }
     pub fn decline_offer(&self, profile: Arc<ProfileHolder>) -> VcxUniFFIResult<()> {
         let mut guard = self.handler.lock()?;
         let connection = self.connection.clone();

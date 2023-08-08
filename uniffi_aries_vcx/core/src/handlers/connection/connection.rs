@@ -34,6 +34,12 @@ pub fn create_inviter(profile: Arc<ProfileHolder>) -> VcxUniFFIResult<Arc<Connec
     })
 }
 
+pub fn from_str(json: String) -> VcxUniFFIResult<Arc<Connection>> {
+    let c: VcxGenericConnection = serde_json::from_str(&json)?;
+    let handler = Mutex::new(c);
+    Ok(Arc::new(Connection { handler }))
+}
+
 // seperate function since uniffi can't handle constructors with results
 pub fn create_invitee(profile: Arc<ProfileHolder>) -> VcxUniFFIResult<Arc<Connection>> {
     android_logger::init_once(android_logger::Config::default().with_max_level(log::LevelFilter::Trace));
@@ -47,6 +53,11 @@ pub fn create_invitee(profile: Arc<ProfileHolder>) -> VcxUniFFIResult<Arc<Connec
 }
 
 impl Connection {
+    pub fn to_string(&self) -> VcxUniFFIResult<String> {
+        let guard = self.handler.lock()?;
+        let c: &VcxGenericConnection = &guard;
+        Ok(serde_json::to_string(c)?)
+    }
     pub fn unpack_msg(&self, profile: Arc<ProfileHolder>, msg: String) -> VcxUniFFIResult<TypeMessage> {
         let _guard = self.handler.lock()?;
         let w = profile.inner.inject_wallet();
