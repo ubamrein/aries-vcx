@@ -59,6 +59,9 @@ dictionary SocialId {
 
 interface Connection {
     [Throws=VcxUniFFIError]
+    string to_string();
+
+    [Throws=VcxUniFFIError]
     ConnectionState get_state();
 
     [Throws=VcxUniFFIError]
@@ -112,6 +115,8 @@ interface Issuance {
     string get_indy_cred(string cred);
     [Throws=VcxUniFFIError]
     string get_preview();
+    [Throws=VcxUniFFIError]
+    string get_cred_def_id();
 };
 
 [Error]
@@ -147,6 +152,8 @@ namespace vcx {
 
     [Throws=VcxUniFFIError]
     Connection create_invitee(ProfileHolder profile);
+    [Throws=VcxUniFFIError]
+    Connection from_str(string json);
 
     [Throws=VcxUniFFIError]
     Issuance create_vc_receiver(string source_id, Connection connection);
