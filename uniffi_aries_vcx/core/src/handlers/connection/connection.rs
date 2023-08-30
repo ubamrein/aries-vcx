@@ -53,7 +53,7 @@ pub fn create_invitee(profile: Arc<ProfileHolder>) -> VcxUniFFIResult<Arc<Connec
 }
 
 impl Connection {
-    pub fn to_string(&self) -> VcxUniFFIResult<String> {
+    pub fn serialize_to_string(&self) -> VcxUniFFIResult<String> {
         let guard = self.handler.lock()?;
         let c: &VcxGenericConnection = &guard;
         Ok(serde_json::to_string(c)?)

@@ -59,7 +59,7 @@ dictionary SocialId {
 
 interface Connection {
     [Throws=VcxUniFFIError]
-    string to_string();
+    string serialize_to_string();
 
     [Throws=VcxUniFFIError]
     ConnectionState get_state();
