@@ -19,6 +19,7 @@ use aries_vcx::{
         },
     },
     messages::msg_fields::protocols::present_proof::request::RequestPresentation,
+    protocols::proof_presentation::prover::state_machine::ProverState,
 };
 
 use crate::{
@@ -98,6 +99,11 @@ impl Proof {
                 .await?;
             Ok::<_, AriesVcxError>(prove)
         })?;
+        if let ProverState::PresentationPreparationFailed = prove.get_state() {
+            return VcxUniFFIResult::Err(crate::errors::error::VcxUniFFIError::AriesVcxError {
+                error_msg: "Could not generate presentation".to_string(),
+            });
+        }
         block_on(async move {
             let send_message = connection.send_message(profile2);
             prove.send_presentation(send_message).await

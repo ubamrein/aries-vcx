@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.library' version '7.4.2'
     id 'org.jetbrains.kotlin.android' version '1.8.0'
+    id 'maven-publish'
 }
 
 android {
@@ -27,6 +28,34 @@ android {
     }
     kotlinOptions {
         jvmTarget = '1.8'
+    }
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            groupId = "org.hyperledger.ariesvcx"
+            artifactId = "vcx"
+            version = "0.0.28"
+            afterEvaluate {
+                from components.release
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "ubiquemaven"
+            url "$ubiqueMavenUrl"
+            credentials {
+                username "$ubiqueMavenUser"
+                password "$ubiqueMavenPass"
+            }
+            authentication {
+                basic(BasicAuthentication)
+                digest(DigestAuthentication)
+            }
+
+        }
     }
 }
 

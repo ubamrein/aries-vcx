@@ -20,18 +20,18 @@ use aries_vcx::errors::error::VcxResult;
 use async_trait::async_trait;
 
 use serde_json::Value;
-use vdrtools::SecureEnclaveProvider;
-use vdrtools::types::IndyError;
 use vdrtools::types::errors::IndyResult;
+use vdrtools::types::IndyError;
+use vdrtools::SecureEnclaveProvider;
 
-use crate::errors::error::{VcxUniFFIError, CryptoError};
+use crate::errors::error::{CryptoError, VcxUniFFIError};
 use crate::handlers::TypeMessage;
 use crate::{errors::error::VcxUniFFIResult, runtime::block_on};
 use aries_vcx::transport::Transport;
 
 use super::http_client::NativeClient;
 
-pub trait NativeCryptoProvider : Send + Sync {
+pub trait NativeCryptoProvider: Send + Sync {
     fn encrypt(&self, data: Vec<u8>, key_handle: String) -> Result<Vec<u8>, CryptoError>;
     fn decrypt(&self, data: Vec<u8>, key_handle: String) -> Result<Vec<u8>, CryptoError>;
     fn new_key(&self) -> Result<String, CryptoError>;
@@ -39,42 +39,54 @@ pub trait NativeCryptoProvider : Send + Sync {
 }
 
 pub struct NativeSecureEnclaveProvider {
-    pub inner: Box<dyn NativeCryptoProvider>
+    pub inner: Box<dyn NativeCryptoProvider>,
 }
-
-
 
 impl NativeSecureEnclaveProvider {
     pub fn new(provider: Box<dyn NativeCryptoProvider>) -> Self {
-        Self {
-            inner: provider
-        }
+        Self { inner: provider }
     }
 }
 
 impl SecureEnclaveProvider for NativeSecureEnclaveProvider {
-    fn encrypt(&self, data: &[u8], key_handle: &str) -> IndyResult<Vec<u8>>{
+    fn encrypt(&self, data: &[u8], key_handle: &str) -> IndyResult<Vec<u8>> {
         self.inner.encrypt(data.to_vec(), key_handle.to_string()).map_err(|e| {
-            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not encrypt")
+            IndyError::from_msg(
+                vdrtools::types::errors::IndyErrorKind::WalletEncryptionError,
+                "could not encrypt",
+            )
         })
     }
 
     fn decrypt(&self, encrypted_data: &[u8], key_handle: &str) -> IndyResult<Vec<u8>> {
-        self.inner.decrypt(encrypted_data.to_vec(), key_handle.to_string()).map_err(|e| {
-            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not decrypt")
-        })
+        self.inner
+            .decrypt(encrypted_data.to_vec(), key_handle.to_string())
+            .map_err(|e| {
+                IndyError::from_msg(
+                    vdrtools::types::errors::IndyErrorKind::WalletEncryptionError,
+                    "could not decrypt",
+                )
+            })
     }
 
     fn new_key(&self) -> IndyResult<String> {
         self.inner.new_key().map_err(|e| {
-            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not create key")
+            IndyError::from_msg(
+                vdrtools::types::errors::IndyErrorKind::WalletEncryptionError,
+                "could not create key",
+            )
         })
     }
 
-    fn get_handle(&self, ty: &str, name: &str, etype: &[u8], ename:&[u8]) -> IndyResult<String> {
-        self.inner.get_handle(ty.into(), name.into(), etype.into(), ename.into()).map_err(|e| {
-            IndyError::from_msg(vdrtools::types::errors::IndyErrorKind::WalletEncryptionError, "could not get handle")
-        })
+    fn get_handle(&self, ty: &str, name: &str, etype: &[u8], ename: &[u8]) -> IndyResult<String> {
+        self.inner
+            .get_handle(ty.into(), name.into(), etype.into(), ename.into())
+            .map_err(|e| {
+                IndyError::from_msg(
+                    vdrtools::types::errors::IndyErrorKind::WalletEncryptionError,
+                    "could not get handle",
+                )
+            })
     }
 }
 
@@ -92,7 +104,7 @@ impl ProfileHolder {
     }
     pub fn delete_credential(&self, id: String) -> VcxUniFFIResult<()> {
         let w = self.inner.inject_anoncreds();
-        block_on(async {w.prover_delete_credential(&id).await})?;
+        block_on(async { w.prover_delete_credential(&id).await })?;
         Ok(())
     }
     pub fn unpack_msg(&self, msg: String) -> VcxUniFFIResult<TypeMessage> {
@@ -243,16 +255,18 @@ impl AnoncredsLedgerRead for DummyLedgerRead {
         VcxCoreResult::Ok(res)
     }
     async fn get_rev_reg_def_json(&self, rev_reg_id: &str) -> VcxCoreResult<String> {
-        // println!("{rev_reg_id}");
-        // let res = ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0))
-        //     .call()
-        //     .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
-        //     .into_string()
-        //     .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?;
-        // println!("{res}");
-        let m = include_str!("../../revregdef.json").to_string();
+        println!("Revregid: {rev_reg_id}");
+        let res = ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0))
+            .call()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+            .into_json::<serde_json::Value>()
+            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
+            .get("rev_reg_def")
+            .ok_or_else(|| {
+                AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, "no rev reg in response".to_string())
+            })?.to_string();
 
-        VcxCoreResult::Ok(m)
+        VcxCoreResult::Ok(res)
     }
     async fn get_rev_reg_delta_json(
         &self,
