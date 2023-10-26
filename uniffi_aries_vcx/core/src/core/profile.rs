@@ -256,16 +256,39 @@ impl AnoncredsLedgerRead for DummyLedgerRead {
     }
     async fn get_rev_reg_def_json(&self, rev_reg_id: &str) -> VcxCoreResult<String> {
         println!("Revregid: {rev_reg_id}");
-        let res = ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0))
-            .call()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
-            .into_json::<serde_json::Value>()
-            .map_err(|e| AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, format!("{e}")))?
-            .get("rev_reg_def")
-            .ok_or_else(|| {
-                AriesVcxCoreError::from_msg(AriesVcxCoreErrorKind::InvalidUrl, "no rev reg in response".to_string())
-            })?.to_string();
+        println!("revreg: {}", format!("{}/rev_reg_def/{rev_reg_id}", self.0));
+        let res = match ureq::get(&format!("{}/rev_reg_def/{rev_reg_id}", self.0)).call() {
+            Ok(res) => res.into_json::<serde_json::Value>(),
+            Err(err) => {
+                println!("revreg: {err}");
+                return Err(AriesVcxCoreError::from_msg(
+                    AriesVcxCoreErrorKind::InvalidUrl,
+                    format!("{err}"),
+                ));
+            }
+        };
 
+        let res = match res {
+            Ok(json) => json.get("rev_reg_def").cloned(),
+            Err(err) => {
+                println!("revreg: {err}");
+                return Err(AriesVcxCoreError::from_msg(
+                    AriesVcxCoreErrorKind::InvalidUrl,
+                    "no rev reg in response".to_string(),
+                ));
+            }
+        };
+        let res = match res {
+            Some(json) => serde_json::to_string(&json).unwrap(),
+            None => {
+                println!("revreg  rev_reg_def not found:");
+                return Err(AriesVcxCoreError::from_msg(
+                    AriesVcxCoreErrorKind::InvalidUrl,
+                    "no rev reg in response".to_string(),
+                ));
+            }
+        };
+        println!("revreg downloaded {res}");
         VcxCoreResult::Ok(res)
     }
     async fn get_rev_reg_delta_json(
